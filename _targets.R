@@ -19,7 +19,13 @@ list(
   # Registries
   tar_target(sources_file, "registry/sources.csv", format = "file"),
   tar_target(sources, read_sources(sources_file)),
-  tar_target(bbsr_file, "data-raw/bbsr/ref-kreise-1990-2024.xlsx", format = "file"),
+  tar_target(reference_sources_file, "registry/reference_sources.csv", format = "file"),
+  tar_target(bbsr_file, {
+    ref <- readr::read_csv(reference_sources_file, col_types = readr::cols(.default = "c"))
+    path <- file.path("data-raw", "bbsr", ref$file_name[ref$label == "bbsr_ref_kreise"])
+    verify_sha256(path, ref$sha256[ref$label == "bbsr_ref_kreise"])
+    path
+  }, format = "file"),
   tar_target(boundary_map_file, "registry/boundary_map.csv", format = "file"),
   tar_target(boundary_registry, read_boundary_map(boundary_map_file)),
   tar_target(boundary_source_check, check_boundary_map_source(boundary_registry, bbsr_file)),
