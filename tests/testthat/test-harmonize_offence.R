@@ -74,3 +74,16 @@ test_that("parent keys hold in the data: child cases never exceed parent cases",
   expect_gt(nrow(x), 150000)
   expect_identical(sum(x$cases > x$cases_parent), 0L)
 })
+
+test_that("aliases are unique lowercase ASCII names", {
+  m <- readr::read_csv(registry_path("offence_map.csv"), col_types = readr::cols(.default = "c"), na = "")
+  path <- withr::local_tempfile(fileext = ".csv")
+  bad <- m
+  bad$alias_en[1:2] <- "same"
+  readr::write_csv(bad, path, na = "")
+  expect_error(read_offence_map(path), "alias_en")
+  bad <- m
+  bad$alias_de[1] <- "Körperverletzung"
+  readr::write_csv(bad, path, na = "")
+  expect_error(read_offence_map(path), "alias_de")
+})

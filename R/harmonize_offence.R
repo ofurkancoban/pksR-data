@@ -10,7 +10,10 @@
 
 offence_map_columns <- c(
   "offence_key_harmonized", "label_de", "label_en", "parent_key",
-  "valid_from", "valid_to", "source_keys", "status", "notes"
+  "valid_from", "valid_to", "source_keys", "status", "notes",
+  # Short names for pksR::pks_get(offence = ), drafts like the mappings
+  # (notes/decisions.md, 2026-10-28)
+  "alias_en", "alias_de"
 )
 
 read_offence_map <- function(path) {
@@ -26,6 +29,12 @@ read_offence_map <- function(path) {
   }
   if (!all(m$status %in% c("draft", "reviewed"))) {
     cli::cli_abort("Offence map status must be draft or reviewed.")
+  }
+  for (col in c("alias_en", "alias_de")) {
+    a <- stats::na.omit(m[[col]])
+    if (!all(grepl("^[a-z0-9_]+$", a)) || anyDuplicated(a)) {
+      cli::cli_abort("{.field {col}} must be unique lowercase ASCII names with underscores.")
+    }
   }
   if (!all(stats::na.omit(m$parent_key) %in% m$offence_key_harmonized)) {
     cli::cli_abort("Parent keys must be harmonized keys themselves.")
