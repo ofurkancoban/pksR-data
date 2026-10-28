@@ -123,3 +123,14 @@ Decision (yours): the legacy repository only gives ideas; what counts is that th
 6. Dry runs are draft prereleases tagged `test-<version>-run<n>`, visible only to the maintainer, so no data become public before the BKA terms of reuse are confirmed. Public releases need the repository variable `PUBLISH_ENABLED = true`, which only you set.
 7. No piggyback (deviation from brief Section 4.1): piggyback 0.1.5 fails once the repository holds a draft release (`pb_releases()` reads `published_at`, which is null for drafts), does not report prereleases, and only warns when a release cannot be created. `R/github.R` talks to the GitHub release API with `httr2`, which the pipeline already uses.
 8. Schedule: monthly on the 1st at 05:17 UTC and weekly on Mondays from March to May. Scheduled runs commit `status/last_check.json`; `keepalive.yml` re-enables the pipeline workflow weekly and commits a heartbeat only when the repository has been idle for 50 days.
+
+## 2026-10-28: Private mirror of the raw files (your decision)
+
+Decision: CI takes the raw files from a private mirror, the draft release `raw-mirror` of this repository (61 files, 132 MB), and checks every copy against the registered SHA-256. A file missing in the mirror is downloaded from its source URL and then added to the mirror. Republished files are detected from the landing pages of all four registries instead of downloading every file each month. `Rscript ci/mirror.R` uploads local files to the mirror after a new file is registered.
+
+Rationale and evidence:
+
+1. bka.de drops connections from GitHub runners at random: in run 40672047901 the first 5 requests failed (PKS 2003 to 2007), in run 40687986906 the first attempt stalled and the rerun fetched all 61 files, in run 40695396376 PKS 2015 to 2017 failed (timeouts, a TLS error), and in run 40706798700, with ten seconds between requests, almost every request failed until the job hit its 90 minute limit. The pace does not matter, so retrying or slowing down cannot make monthly downloads reliable. Circumventing the restriction (proxies, browser imitation) was ruled out.
+2. A draft release is visible only to people with write access, so the BKA files are not redistributed publicly while the terms of reuse are open.
+3. The registries remain the source of truth: a mirror copy with another hash is ignored, and the source URL decides.
+4. Every request now has a total time limit including retries (5 minutes for files, 2 minutes for pages), and the landing page check gives up on a host after three unreachable pages in a row, so a dead host fails the run quickly with a report instead of holding it until the timeout. Unreachable pages are listed in `status/last_check.json`; only republished or unlinked files open an issue.

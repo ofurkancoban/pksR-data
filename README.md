@@ -69,7 +69,7 @@ Data releases are GitHub releases of this repository, tagged `v<year>.<n>` (for 
 | `sources.csv`, `boundary_map.csv`, `offence_map.csv`, `known_breaks.csv` | Registries used for the release |
 | `manifest.json` | SHA-256, size and rows of every asset, pipeline commit, data notes |
 
-`.github/workflows/pipeline.yml` runs monthly, weekly from March to May, and on demand. It downloads every registered raw file and checks its hash, looks for new reporting years on bka.de, runs the tests, builds and validates the panel, and releases when the data changed. Changed source files, failed checks and new years open an issue instead of a release. Public releases are enabled with the repository variable `PUBLISH_ENABLED`; manual runs with `release = test` create a draft prerelease to check the mechanics.
+`.github/workflows/pipeline.yml` runs monthly, weekly from March to May, and on demand. It takes every registered raw file from a private mirror (a draft release, because bka.de drops connections from GitHub runners) and checks its hash, downloads files the mirror lacks from their source, checks the landing pages for republished files, looks for new reporting years on bka.de, builds and validates the panel, runs the tests, and releases when the data changed. Changed source files, failed checks and new years open an issue instead of a release. Public releases are enabled with the repository variable `PUBLISH_ENABLED`; manual runs with `release = test` create a draft prerelease to check the mechanics.
 
 ## Layout
 
@@ -94,8 +94,9 @@ Data releases are GitHub releases of this repository, tagged `v<year>.<n>` (for 
 Tested with R 4.6.0. Requires `targets`, `readxl`, `pdftools`, `arrow`, `readr`, `dplyr`, `tibble`, `cli`, `httr2`, `digest`, `jsonlite`, `testthat` and `withr`. Run from the repository root in a UTF-8 locale.
 
 ```r
-# Raw files are not committed. `Rscript ci/fetch.R` downloads them from the
-# registries and checks them against the recorded SHA-256:
+# Raw files are not committed. `Rscript ci/fetch.R` fetches them (mirror
+# first, then the source URLs) and checks them against the recorded SHA-256;
+# `Rscript ci/mirror.R` uploads local files to the mirror:
 #   data-raw/                      PKS Kreis tables (registry/sources.csv)
 #   data-raw/bbsr/                 BBSR crosswalk (registry/reference_sources.csv)
 #   data-raw/bund/                 Bund tables (registry/bund_sources.csv)
