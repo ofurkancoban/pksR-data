@@ -68,6 +68,12 @@ github_upload_asset <- function(repo, release_id, path, token = github_token()) 
   httr2::resp_body_json(resp)
 }
 
+github_branch_head <- function(repo, branch, token = github_token()) {
+  resp <- github_request(sprintf("/repos/%s/commits/%s", repo, utils::URLencode(branch, reserved = TRUE)), token) |>
+    httr2::req_perform()
+  httr2::resp_body_json(resp)$sha
+}
+
 github_release_assets <- function(repo, release_id, token = github_token()) {
   a <- list()
   page <- 1

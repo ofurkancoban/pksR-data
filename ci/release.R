@@ -13,6 +13,8 @@ repo <- Sys.getenv("GITHUB_REPOSITORY", "ofurkancoban/pksR-data")
 commit <- Sys.getenv("GITHUB_SHA", system("git rev-parse HEAD", intern = TRUE))
 dir <- "output/release"
 
+branch <- Sys.getenv("GITHUB_REF_NAME", "main")
+if (nzchar(Sys.getenv("GITHUB_SHA"))) assert_branch_unchanged(repo, branch, commit)
 version <- next_data_version(github_releases(repo)$tag_name)
 manifest <- build_manifest(dir, version, commit)
 result <- list(mode = mode, data_version = version, pipeline_commit = commit, tag = NA, published = FALSE)

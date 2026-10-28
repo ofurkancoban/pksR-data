@@ -71,3 +71,8 @@ test_that("an existing tag is never overwritten", {
   withr::defer(assign("github_releases", orig, envir = globalenv()))
   expect_error(publish_release(withr::local_tempdir(), "o/r", "v2026.1", "body"), "immutable")
 })
+
+test_that("no release when the branch moved during the run", {
+  expect_true(assert_branch_unchanged("o/r", "main", "abc", head = "abc"))
+  expect_error(assert_branch_unchanged("o/r", "main", "abc1234", head = "def5678"), "moved during the run")
+})

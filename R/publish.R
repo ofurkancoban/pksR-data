@@ -131,6 +131,21 @@ data_changed <- function(manifest, previous) {
              previous$content_sha256[order(names(previous$content_sha256))])
 }
 
+# The release must point at the commit that built the data. The workflow
+# token cannot create a release on a commit whose workflow files differ from
+# the branch head (HTTP 403 "Resource not accessible by integration",
+# diagnose run 40732185699), so a branch that moved during the run stops the
+# release with a clear message instead.
+assert_branch_unchanged <- function(repo, branch, commit, head = github_branch_head(repo, branch)) {
+  if (!identical(head, commit)) {
+    cli::cli_abort(c(
+      "Branch {.val {branch}} moved during the run ({substr(commit, 1, 7)} to {substr(head, 1, 7)}); no release.",
+      "i" = "Rerun the pipeline on the new commit."
+    ))
+  }
+  invisible(TRUE)
+}
+
 # Creates the release and uploads every asset, manifest last, then checks
 # that GitHub holds exactly these files with these sizes. An existing tag is
 # never touched (published releases are immutable).
