@@ -115,10 +115,23 @@ Output:
 ## Sources and attribution
 
 - Bundeskriminalamt (BKA), Polizeiliche Kriminalstatistik, district tables (Kreise) and national tables (Bund), <https://www.bka.de>.
-- Bundesinstitut für Bau-, Stadt- und Raumforschung (BBSR), Umsteigeschlüssel für Kreise (`ref-kreise`).
+- [Bundesinstitut für Bau-, Stadt- und Raumforschung](https://www.bbsr.bund.de) (BBSR), Umsteigeschlüssel für Kreise (`ref-kreise`).
 - Statistisches Bundesamt (Destatis), Gemeindeverzeichnis, yearly lists of changes to municipal names and boundaries (URLs in `registry/destatis_sources.csv`).
 
-The terms of reuse of the source data are being confirmed before the first public data release.
+### Terms of reuse
+
+The code in this repository is MIT licensed. The data keep the terms of their sources (checked on 2026-10-28, see `notes/decisions.md`):
+
+| Source | Terms | Required source note |
+|---|---|---|
+| BKA, PKS tables | Datenlizenz Deutschland, Namensnennung, Version 2.0 ([dl-de/by-2-0](https://www.govdata.de/dl-de/by-2-0)), stated on the PKS pages of every reporting year from 2012 to 2025 | "PKS Bundeskriminalamt", reporting year, version |
+| BKA, PKS yearbooks 2003 to 2011 (PDF) | Printed notice: reprint and copying only with the BKA named as source (the 2003 and 2004 editions also mention the BKA's permission); releases contain figures extracted from them, not the PDFs | "Bundeskriminalamt" |
+| BBSR, Umsteigeschlüssel | Datenlizenz Deutschland, Namensnennung, Version 2.0, per the BBSR Nutzungshinweise | "BBSR Bonn [year]", with a note on changes |
+| Destatis, Gemeindeverzeichnis | Copying and distribution with a source note | "Statistisches Bundesamt (Destatis)" |
+
+The licence asks for a note when data are changed. The data in a release are changed: extracted from the published tables, harmonized to one boundary year and offence classification, with derived columns added. They are not official BKA figures. Each release names all three sources, their licences and the changes made, in `ATTRIBUTION.txt` and in `manifest.json` (`license`, `attribution`, `license_note`). The registries in the release (`sources.csv`, `bund_sources.csv`, `reference_sources.csv`, `destatis_sources.csv`) give the URL of every source file. Anyone who passes the data on should keep these notes.
+
+Suggested citation for a release: *Source: PKS Bundeskriminalamt, reporting years 2003 to 2025; BBSR Bonn; Statistisches Bundesamt (Destatis), Gemeindeverzeichnis; Datenlizenz Deutschland, Namensnennung, Version 2.0; changed and processed with pksR-data, data version `<version>`.*
 
 ## Author
 
