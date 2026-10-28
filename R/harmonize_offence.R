@@ -11,7 +11,7 @@
 offence_map_columns <- c(
   "offence_key_harmonized", "label_de", "label_en", "parent_key",
   "valid_from", "valid_to", "source_keys", "status", "notes",
-  # Short names for pksR::pks_get(offence = ), drafts like the mappings
+  # Short names for pksR::pks_get(offence = ), reviewed with the mappings
   # (notes/decisions.md, 2026-10-28)
   "alias_en", "alias_de"
 )

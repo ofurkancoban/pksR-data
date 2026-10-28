@@ -82,7 +82,7 @@ Data releases are GitHub releases of this repository, tagged `v<year>.<n>` (for 
 | `registry/sources.csv` | One row per year: verified URL, SHA-256, page range or sheet, published boundary |
 | `registry/boundary_map.csv` | Territorial crosswalk 2003 to 2025 in long form (BBSR, manual and Destatis rows) |
 | `registry/destatis_sources.csv` | Destatis lists of municipal territorial changes 2003 to 2025 |
-| `registry/offence_map.csv` | Offence key harmonization (draft) |
+| `registry/offence_map.csv` | Offence key harmonization (reviewed 2026-10-28) |
 | `registry/known_breaks.csv` | Methodological breaks with comparability assessment (draft) |
 | `registry/bund_sources.csv` | National case tables 2013 to 2025, used only by the validation gate |
 | `registry/reference_sources.csv` | BBSR crosswalk file |
