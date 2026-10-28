@@ -9,6 +9,11 @@
 #   manual, test       draft prerelease "test-<version>-run<n>"
 #   manual, publish    as a scheduled run
 # Any failure or finding opens an issue; nothing is published then.
+#
+# A newer BBSR crosswalk edition (found by the discovery step) is prepared
+# by the crosswalk job: registry update, trial build and tests on a branch
+# "auto/bbsr-<file>", a pull request and an issue. Merging stays with the
+# maintainer, because the new rows are a territorial mapping.
 name: pipeline
 
 on:
@@ -26,6 +31,7 @@ on:
 permissions:
   contents: write
   issues: write
+  pull-requests: write
 
 concurrency:
   group: pipeline
@@ -35,6 +41,8 @@ jobs:
   pipeline:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    outputs:
+      crosswalk_url: ${{ steps.discover.outputs.crosswalk_url }}
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -120,3 +128,99 @@ jobs:
           git commit -m "chore(pipeline): update status of scheduled run" || exit 0
           git pull --rebase
           git push
+
+  crosswalk:
+    needs: pipeline
+    # Also after a failed pipeline run: a new crosswalk may be the reason
+    if: always() && needs.pipeline.outputs.crosswalk_url != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PKSR_PROXY_URL: ${{ secrets.BKA_PROXY_URL }}
+      PKSR_PROXY_KEY: ${{ secrets.BKA_PROXY_KEY }}
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      CROSSWALK_URL: ${{ needs.pipeline.outputs.crosswalk_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # One branch per edition: a later run does not prepare it again
+      - name: Check for an existing update branch
+        id: branch
+        run: |
+          file=$(basename "${CROSSWALK_URL%%\?*}" .xlsx)
+          branch="auto/bbsr-$file"
+          echo "name=$branch" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --heads origin "$branch" > /dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Branch $branch exists already; nothing to do."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: r-lib/actions/setup-r@v2
+        if: steps.branch.outputs.exists == 'false'
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        if: steps.branch.outputs.exists == 'false'
+        with:
+          dependencies: '"all"'
+
+      - name: Fetch and verify raw files
+        if: steps.branch.outputs.exists == 'false'
+        run: Rscript ci/fetch.R
+
+      - name: Update the registry to the new crosswalk
+        if: steps.branch.outputs.exists == 'false'
+        run: Rscript ci/update_crosswalk.R "$CROSSWALK_URL"
+
+      # Trial on the updated registry; the outcome goes into the pull request
+      - name: Trial build
+        id: build
+        if: steps.branch.outputs.exists == 'false'
+        continue-on-error: true
+        run: Rscript -e 'targets::tar_make()'
+
+      - name: Trial tests
+        id: tests
+        if: steps.branch.outputs.exists == 'false'
+        continue-on-error: true
+        run: Rscript -e 'testthat::test_dir("tests/testthat", stop_on_failure = TRUE)'
+
+      - name: Push branch, open pull request and issue
+        if: steps.branch.outputs.exists == 'false'
+        env:
+          BRANCH: ${{ steps.branch.outputs.name }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          TESTS_OUTCOME: ${{ steps.tests.outcome }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add registry/reference_sources.csv registry/boundary_map.csv
+          Rscript ci/issue_body.R crosswalk-commit > message.txt
+          git commit -F message.txt
+          git push origin "$BRANCH"
+          title="New BBSR crosswalk: $(basename "$BRANCH" | sed 's/^bbsr-//')"
+          Rscript ci/issue_body.R crosswalk > body.md
+          # Needs "Allow GitHub Actions to create and approve pull requests"
+          # in the repository settings; without it the issue names the branch
+          PR_URL=$(gh pr create --base "${{ github.event.repository.default_branch }}" --head "$BRANCH" \
+            --title "$(head -n 1 message.txt)" --body-file body.md) || PR_URL=""
+          export PR_URL
+          Rscript ci/issue_body.R crosswalk > body.md
+          gh issue create --title "$title" --body-file body.md
+
+      - name: Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crosswalk-reports
+          path: |
+            output/ci/
+            output/validation/
+          if-no-files-found: ignore
