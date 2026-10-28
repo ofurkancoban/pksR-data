@@ -125,3 +125,40 @@ jobs:
             echo "| $variant | exit $code | id ${id:-none} |" >> "$GITHUB_STEP_SUMMARY"
             if [ -n "$id" ]; then gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id" && echo "deleted probe $id"; fi
           done
+
+  # The same probe through the pipeline's own R client (R/github.R), to tell
+  # a token problem from a problem in how the client sends the request.
+  release-api-r:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+      - uses: r-lib/actions/setup-r-dependencies@v2
+      - name: Create and delete a probe draft release from R
+        continue-on-error: true
+        run: |
+          cat > probe.R <<'RSCRIPT'
+          for (f in c("R/utils.R", "R/download.R", "R/github.R")) source(f)
+          tok <- github_token()
+          cat("token prefix:", substr(tok, 1, 4), "length:", nchar(tok), "\n")
+          cat("GITHUB_PAT set:", nzchar(Sys.getenv("GITHUB_PAT")), " same as GITHUB_TOKEN:", identical(Sys.getenv("GITHUB_PAT"), Sys.getenv("GITHUB_TOKEN")), "\n")
+          repo <- Sys.getenv("GITHUB_REPOSITORY")
+          r <- tryCatch(
+            github_release_create(repo, paste0("probe-r-", Sys.getenv("GITHUB_RUN_ID")), "Probe, deleted at once.", draft = TRUE, prerelease = TRUE, commit = Sys.getenv("GITHUB_SHA")),
+            error = function(e) { cat("ERROR:", conditionMessage(e), "\n"); NULL }
+          )
+          if (!is.null(r)) {
+            cat("created release id", format(r$id, scientific = FALSE), "\n")
+            writeLines(format(r$id, scientific = FALSE), "probe_id.txt")
+          }
+          RSCRIPT
+          Rscript probe.R
+          if [ -f probe_id.txt ]; then gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$(cat probe_id.txt)" && echo "deleted probe"; fi
