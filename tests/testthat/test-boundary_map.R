@@ -44,10 +44,68 @@ test_that("district counts follow the boundary year (BUG-006)", {
 })
 
 test_that("BBSR rows in the registry equal the BBSR file", {
-  bbsr <- file.path(root, "data-raw", "bbsr", "ref-kreise-1990-2024.xlsx")
+  bbsr <- registered_bbsr_path()
   skip_if_not(file.exists(bbsr), "BBSR file not downloaded")
   expect_true(check_boundary_map_source(map, bbsr))
   edited <- map
   edited$weight_population[edited$id == "bbsr-2016-r010"] <- 0.5
   expect_error(check_boundary_map_source(edited, bbsr), "differ")
+})
+
+# A newer BBSR edition, simulated: the registry copy lacks the last period of
+# the registered file, so the file is one edition ahead of the registry.
+crosswalk_update_fixture <- function(edit = identity) {
+  bbsr <- registered_bbsr_path()
+  destatis_dir <- file.path(root, "data-raw", "destatis")
+  skip_if_not(file.exists(bbsr) && dir.exists(destatis_dir), "BBSR or Destatis files not downloaded")
+  changes <- read_destatis_all(read_destatis_sources(registry_path("destatis_sources.csv")), destatis_dir)
+  m <- read_boundary_map_raw(registry_path("boundary_map.csv"))
+  m <- edit(m[m$period < max(m$period), ])
+  path <- withr::local_tempfile(fileext = ".csv", .local_envir = parent.frame())
+  readr::write_csv(m, path, na = "")
+  list(bbsr = bbsr, path = path, changes = changes, old = m)
+}
+
+test_that("a newer BBSR edition adds its periods and moves the target year", {
+  f <- crosswalk_update_fixture()
+  r <- update_boundary_map(f$bbsr, f$path, f$changes)
+  last <- max(f$old$period) + 1L
+  expect_equal(r$new_periods, last)
+  expect_equal(c(r$previous_target_year, r$target_year), c(last, last + 1L))
+  expect_equal(r$target_districts, length(boundary_codes(effective_boundary_map(read_boundary_map(registry_path("boundary_map.csv"))), last + 1L)))
+  expect_gt(r$bbsr$added, 0)
+  expect_equal(c(r$bbsr$removed, r$bbsr$changed), c(0L, 0L))
+  expect_equal(r$manual_rows_kept, sum(f$old$source == "manual"))
+  # The result is the registered map again, row for row
+  expect_identical(readLines(f$path), readLines(registry_path("boundary_map.csv")))
+})
+
+test_that("a manual row is never kept on a BBSR row that now means another transition", {
+  f <- crosswalk_update_fixture(function(m) {
+    id <- m$replaces[m$source == "manual"][1]
+    m$to_ags[m$id == id] <- "99999"
+    m
+  })
+  expect_error(update_boundary_map(f$bbsr, f$path, f$changes), "another transition")
+})
+
+test_that("reviewed Destatis rows stay reviewed when their weights are unchanged", {
+  f <- crosswalk_update_fixture(function(m) {
+    m$status[which(m$source == "destatis")[1]] <- "reviewed"
+    m
+  })
+  r <- update_boundary_map(f$bbsr, f$path, f$changes)
+  expect_equal(r$destatis_reviewed_kept, 1L)
+  new <- read_boundary_map_raw(f$path)
+  expect_identical(new$status[new$id == f$old$id[which(f$old$source == "destatis")[1]]], "reviewed")
+})
+
+test_that("the reference registry is pointed at the new file", {
+  path <- withr::local_tempfile(fileext = ".csv")
+  file.copy(registry_path("reference_sources.csv"), path)
+  update_reference_source(path, "bbsr_ref_kreise", "https://example.org/ref-kreise-1990-2025.xlsx", "abc", "ref-kreise-1990-2025.xlsx", "2027-01-15")
+  ref <- readr::read_csv(path, col_types = readr::cols(.default = "c"))
+  expect_identical(ref$file_name, "ref-kreise-1990-2025.xlsx")
+  expect_identical(ref$retrieved_at, "2027-01-15")
+  expect_error(update_reference_source(path, "nope", "u", "s", "f"), "no single row")
 })

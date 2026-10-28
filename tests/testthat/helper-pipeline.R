@@ -30,6 +30,13 @@ xls_fixture <- function(year) {
 
 registry_path <- function(name) file.path(root, "registry", name)
 
+# The BBSR crosswalk the registry points at (the file name changes with each
+# edition, ci/update_crosswalk.R)
+registered_bbsr_path <- function() {
+  ref <- readr::read_csv(registry_path("reference_sources.csv"), col_types = readr::cols(.default = "c"))
+  file.path(root, "data-raw", "bbsr", ref$file_name[ref$label == "bbsr_ref_kreise"])
+}
+
 # A small crosswalk: 2019 to 2020 merges 01002 into 01001 and splits 03001
 # into 03001 (70 percent) and 03002 (30 percent); 2020 to 2021 changes nothing.
 toy_map <- function() {

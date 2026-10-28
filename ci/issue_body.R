@@ -1,5 +1,6 @@
 # Markdown body for the issue CI opens. Usage:
-#   Rscript ci/issue_body.R failure|discovery > body.md
+#   Rscript ci/issue_body.R failure|discovery|crosswalk > body.md
+#   Rscript ci/issue_body.R crosswalk-commit > message.txt
 source("ci/common.R")
 
 kind <- commandArgs(trailingOnly = TRUE)[1]
@@ -48,5 +49,40 @@ if (kind == "discovery") {
     out <- c(out, "## Registered files no longer linked as registered", "", "```",
              jsonlite::toJSON(d$landing_pages, auto_unbox = TRUE, pretty = TRUE, na = "null"), "```", "")
   }
+}
+# A newer BBSR crosswalk (crosswalk job): the same text serves the pull
+# request and the issue. BUILD_OUTCOME and TESTS_OUTCOME are the outcomes of
+# the trial steps, PR_URL the pull request if one could be opened.
+if (kind %in% c("crosswalk", "crosswalk-commit")) {
+  x <- read_ci("crosswalk")
+  if (is.null(x)) stop("output/ci/crosswalk.json is missing")
+  years <- if (length(x$new_periods)) paste(unlist(x$new_periods), collapse = ", ") else "none"
+  facts <- c(
+    sprintf("BBSR crosswalk %s replaces %s.", x$file, x$previous_file),
+    sprintf("New periods: %s. Target boundary year %s -> %s with %s districts.",
+            years, x$previous_target_year, x$target_year, x$target_districts),
+    sprintf("BBSR rows: %s added, %s changed, %s removed. Destatis rows: %s added, %s changed, %s removed.",
+            x$bbsr$added, x$bbsr$changed, x$bbsr$removed, x$destatis$added, x$destatis$changed, x$destatis$removed),
+    sprintf("Manual rows kept: %s. Reviewed Destatis rows kept: %s.", x$manual_rows_kept, x$destatis_reviewed_kept)
+  )
+}
+if (kind == "crosswalk-commit") {
+  out <- c(sprintf("data(registry): update BBSR crosswalk to %s", sub("\\.xlsx$", "", x$file)), "",
+           strwrap(paste(c(facts, "New Destatis rows are drafts and need review."), collapse = " "), width = 72))
+}
+if (kind == "crosswalk") {
+  pr <- Sys.getenv("PR_URL")
+  out <- c(out, "## New BBSR crosswalk edition", "",
+           sprintf("Source: <%s> (SHA-256 `%s`).", x$url, x$sha256), "",
+           paste("-", facts),
+           sprintf("- Trial build: **%s**, tests: **%s**.", Sys.getenv("BUILD_OUTCOME", "not run"), Sys.getenv("TESTS_OUTCOME", "not run")),
+           if (!isTRUE(x$destatis_covers_new_periods))
+             sprintf("- The Destatis change lists end at %s: transfers BBSR omits cannot be checked for the new periods yet. Add the newer list to `registry/destatis_sources.csv`.", x$destatis_last_change),
+           if (length(x$bbsr$changed_ids)) sprintf("- BBSR revised earlier rows: %s", paste(unlist(x$bbsr$changed_ids), collapse = ", ")),
+           "",
+           if (nzchar(pr)) sprintf("Pull request with the updated registry: %s", pr) else
+             sprintf("The updated registry is on branch `%s`; open a pull request from it.", Sys.getenv("BRANCH")),
+           "",
+           "Before merging: review the new rows in `registry/boundary_map.csv` (new Destatis rows are drafts), add the decision to `notes/decisions.md`, and expect the next release to use the new target boundary year.")
 }
 cat(out, sep = "\n")

@@ -66,3 +66,30 @@ test_that("landing pages left after the time budget are marked, not fetched", {
 test_that("page requests have a short per-attempt timeout", {
   expect_match(gsub("[[:space:]]+", " ", paste(deparse(body(fetch_html)), collapse = " ")), "timeout = 60", fixed = TRUE)
 })
+
+# Links of the BBSR Umsteigeschluessel page on 2026-10-28
+# (fixtures/bbsr_links_2026.rds): the newest Kreis edition was 1990-2024.
+bbsr_links <- readRDS(fixture("bbsr_links_2026.rds"))
+bbsr_landing <- names(bbsr_links)
+bbsr_fetch <- function(extra = character(0)) {
+  function(url) {
+    links <- c(bbsr_links[[url]], extra)
+    xml2::read_html(paste0("<html><body>", paste0('<a href="', gsub("&", "&amp;", links, fixed = TRUE), '">x</a>', collapse = ""), "</body></html>"))
+  }
+}
+registered_bbsr <- readr::read_csv(registry_path("reference_sources.csv"), col_types = readr::cols(.default = "c"))$url
+
+test_that("the registered BBSR edition is the newest one linked", {
+  found <- find_bbsr_crosswalks(bbsr_landing, bbsr_fetch())
+  # The recalculation file ref-kreise-umrech-* is not a crosswalk edition
+  expect_equal(found$end_year, 2024L)
+  expect_identical(found$url, registered_bbsr)
+  expect_equal(nrow(newer_bbsr_crosswalk(registered_bbsr, bbsr_fetch(), bbsr_landing)), 0)
+})
+
+test_that("a crosswalk with a later end year in its name is reported", {
+  url <- "https://www.bbsr.bund.de/BBSR/DE/forschung/raumbeobachtung/Raumabgrenzungen/umstiegsschluessel/ref-kreise-1990-2025.xlsx?__blob=publicationFile&v=1"
+  new <- newer_bbsr_crosswalk(registered_bbsr, bbsr_fetch(url), bbsr_landing)
+  expect_equal(c(new$end_year, new$registered_end_year), c(2025L, 2024L))
+  expect_identical(new$url, url)
+})

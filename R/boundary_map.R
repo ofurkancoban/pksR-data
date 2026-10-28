@@ -233,3 +233,78 @@ boundary_names <- function(map, year) {
   }
   rows
 }
+
+# Moves boundary_map.csv to a new BBSR edition (ci/update_crosswalk.R).
+# BBSR rows are regenerated for every period from the first registered one
+# to the last sheet of the new file. Manual rows are kept, which is safe
+# only while the BBSR row each one replaces still describes the same
+# transition: BBSR ids are row positions, so a row inserted by BBSR would
+# make a manual row replace the wrong one, and the update stops instead.
+# Destatis rows are recomputed as drafts; a row already "reviewed" keeps
+# that status when its weights did not change. Returns what changed.
+update_boundary_map <- function(bbsr_path, map_path, destatis_changes) {
+  old <- read_boundary_map_raw(map_path)
+  sheets <- grep("^[0-9]{4}-[0-9]{4}$", readxl::excel_sheets(bbsr_path), value = TRUE)
+  periods <- seq(min(old$period), max(as.integer(substr(sheets, 1, 4))))
+  fresh <- read_bbsr_crosswalk(bbsr_path, periods)
+
+  manual <- old[old$source == "manual", ]
+  transition <- function(d) paste(d$period, d$from_ags, d$to_ags)
+  before <- old[match(manual$replaces, old$id), ]
+  after <- fresh[match(manual$replaces, fresh$id), ]
+  moved <- manual$id[is.na(after$id) | transition(before) != transition(after)]
+  if (length(moved) > 0) {
+    cli::cli_abort(c(
+      "{length(moved)} manual row{?s} replace a BBSR row that describes another transition in {.file {basename(bbsr_path)}}: {.val {moved}}.",
+      "i" = "Point {.field replaces} at the new BBSR row by hand."
+    ))
+  }
+
+  build_boundary_map(bbsr_path, map_path, periods, destatis_changes)
+  new <- read_boundary_map_raw(map_path)
+  signature <- function(d) paste(d$id, d$from_ags, d$to_ags, d$weight_population, d$weight_area)
+  reviewed <- old[old$source == "destatis" & old$status == "reviewed", ]
+  keep <- new$source == "destatis" & signature(new) %in% signature(reviewed)
+  if (any(keep)) {
+    new$status[keep] <- "reviewed"
+    readr::write_csv(new, map_path, na = "")
+  }
+
+  compare <- function(src) {
+    o <- old[old$source == src, ]
+    n <- new[new$source == src, ]
+    changed <- n$id[n$id %in% o$id & !signature(n) %in% signature(o)]
+    list(
+      added = sum(!n$id %in% o$id), removed = sum(!o$id %in% n$id), changed = length(changed),
+      changed_ids = utils::head(changed, 20)
+    )
+  }
+  last_change <- if (nrow(destatis_changes)) max(destatis_changes$effective) else as.Date(NA)
+  list(
+    periods = range(periods),
+    new_periods = setdiff(periods, old$period),
+    previous_target_year = max(old$period) + 1L,
+    target_year = max(periods) + 1L,
+    target_districts = length(boundary_codes(effective_boundary_map(read_boundary_map(map_path)), max(periods) + 1L)),
+    bbsr = compare("bbsr"), destatis = compare("destatis"),
+    manual_rows_kept = nrow(manual),
+    destatis_reviewed_kept = sum(keep),
+    # Transfers BBSR omits can only be found for periods the Destatis lists
+    # cover; period t holds the changes of year t + 1
+    destatis_last_change = format(last_change),
+    destatis_covers_new_periods = !is.na(last_change) && as.integer(format(last_change, "%Y")) >= max(periods) + 1L
+  )
+}
+
+# Points the row `label` of reference_sources.csv at a new file.
+update_reference_source <- function(path, label, url, sha256, file_name, retrieved_at = Sys.Date()) {
+  ref <- readr::read_csv(path, col_types = readr::cols(.default = "c"), na = "")
+  i <- which(ref$label == label)
+  if (length(i) != 1) cli::cli_abort("{.file {path}} has no single row {.val {label}}.")
+  ref$url[i] <- url
+  ref$sha256[i] <- sha256
+  ref$file_name[i] <- file_name
+  ref$retrieved_at[i] <- format(as.Date(retrieved_at))
+  readr::write_csv(ref, path, na = "")
+  invisible(ref[i, ])
+}

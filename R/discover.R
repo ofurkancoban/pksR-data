@@ -113,3 +113,29 @@ check_landing_pages <- function(files, fetch = fetch_html, give_up_after = 3, bu
     rows
   )
 }
+
+# BBSR crosswalk (registry/reference_sources.csv). The file name carries the
+# last year it covers (ref-kreise-1990-2024.xlsx, verified 2026-10-28), so a
+# new edition comes as a new file name on the same landing page. The
+# recalculation file ref-kreise-umrech-* is another product and not matched.
+bbsr_crosswalk_pattern <- "/ref-kreise-1990-([0-9]{4})\\.xlsx(\\?|$)"
+
+# Crosswalk editions linked from `landing_page`, newest first.
+find_bbsr_crosswalks <- function(landing_page, fetch = fetch_html) {
+  links <- page_links(fetch(landing_page), landing_page)
+  m <- regmatches(links, regexec(bbsr_crosswalk_pattern, links))
+  hit <- lengths(m) == 3
+  out <- tibble::tibble(end_year = as.integer(vapply(m[hit], `[`, "", 2)), url = links[hit])
+  out <- out[!duplicated(out$end_year), ]
+  out[order(-out$end_year), ]
+}
+
+# The newest linked edition if it covers more years than `registered_url`,
+# otherwise zero rows.
+newer_bbsr_crosswalk <- function(registered_url, fetch = fetch_html, landing_page) {
+  m <- regmatches(registered_url, regexec(bbsr_crosswalk_pattern, registered_url))[[1]]
+  if (length(m) != 3) cli::cli_abort("The registered BBSR URL does not name a ref-kreise-1990-<year> file.")
+  found <- find_bbsr_crosswalks(landing_page, fetch)
+  found$registered_end_year <- rep(as.integer(m[2]), nrow(found))
+  found[found$end_year > as.integer(m[2]), ][seq_len(min(1, sum(found$end_year > as.integer(m[2])))), ]
+}

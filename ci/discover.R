@@ -1,16 +1,29 @@
 # Look for reporting years that bka.de links but the registry lacks, and for
 # registered files that their landing page no longer links. Findings are
 # reported (step output "found") and turned into an issue; the registry is
-# never edited here. Network errors are reported, not fatal.
+# never edited here. A newer BBSR crosswalk is reported through the step
+# outputs "crosswalk_url" and "crosswalk_end_year" for the crosswalk job.
+# Network errors are reported, not fatal.
 source("ci/common.R")
 
 sources <- read_sources("registry/sources.csv")
 new <- tryCatch(discover_new_years(sources$year), error = function(e) e)
 # Ten minutes for all landing pages; the rest is marked "not checked"
 landing <- tryCatch(check_landing_pages(raw_inventory(), budget = 600), error = function(e) e)
+# A new BBSR crosswalk edition comes as a new file name; the crosswalk job
+# of the workflow prepares the update on a branch (ci/update_crosswalk.R).
+ref <- readr::read_csv("registry/reference_sources.csv", col_types = readr::cols(.default = "c"), na = "")
+bbsr <- ref[ref$label == "bbsr_ref_kreise", ]
+crosswalk <- tryCatch(newer_bbsr_crosswalk(bbsr$url, landing_page = bbsr$landing_page), error = function(e) e)
+new_crosswalk <- !inherits(crosswalk, "error") && nrow(crosswalk) > 0
+set_output("crosswalk_url", if (new_crosswalk) crosswalk$url else "")
+set_output("crosswalk_end_year", if (new_crosswalk) crosswalk$end_year else "")
+
 # Unreachable pages are recorded in the status file; only real changes are
-# findings that open an issue.
+# findings that open an issue. The old crosswalk no longer being linked is
+# the crosswalk job's business, not a second issue.
 changes <- if (inherits(landing, "error")) NULL else landing[landing$status %in% c("republished", "no longer linked"), ]
+if (new_crosswalk && !is.null(changes)) changes <- changes[changes$registry != "reference_sources", ]
 
 # For each candidate file: hash and a trial extraction with a draft row, so
 # the issue shows whether the known layout still applies.
@@ -39,6 +52,8 @@ result <- list(
   registry_years = range(sources$year),
   new_years = if (inherits(new, "error")) list(error = conditionMessage(new)) else
     lapply(seq_len(nrow(new)), function(i) trial(new$year[i], new$url[i], new$landing_page[i])),
+  bbsr_crosswalk = if (inherits(crosswalk, "error")) list(error = conditionMessage(crosswalk)) else
+    list(registered = bbsr$file_name, newer = if (new_crosswalk) crosswalk else NULL),
   landing_pages = if (inherits(landing, "error")) list(error = conditionMessage(landing)) else changes,
   landing_pages_not_checked = if (inherits(landing, "error")) list() else landing[!landing$status %in% c("republished", "no longer linked"), ]
 )

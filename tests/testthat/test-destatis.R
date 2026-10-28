@@ -1,5 +1,5 @@
 destatis_dir <- file.path(root, "data-raw", "destatis")
-bbsr_path <- file.path(root, "data-raw", "bbsr", "ref-kreise-1990-2024.xlsx")
+bbsr_path <- registered_bbsr_path()
 reg <- read_boundary_map(registry_path("boundary_map.csv"))
 eff <- effective_boundary_map(reg)
 
