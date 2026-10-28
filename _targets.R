@@ -126,9 +126,10 @@ list(
   tar_target(
     release_assets,
     {
-      # The source registries are copied into the release and feed its
-      # attribution, so a change in them rebuilds the assets
-      c(bund_sources_file, destatis_sources_file, reference_sources_file)
+      # Every registry copied into the release is a dependency: unchanged
+      # panels must not keep an outdated registry copy in the release
+      c(sources_file, bund_sources_file, destatis_sources_file, reference_sources_file,
+        boundary_map_file, offence_map_file, known_breaks_file)
       build_release_assets(canonical_file, panel_file, "registry", "output/release")
     },
     format = "file"
