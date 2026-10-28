@@ -63,10 +63,12 @@ Data releases are GitHub releases of this repository, tagged `v<year>.<n>` (for 
 | Asset | Content |
 |---|---|
 | `pks_kreis_published.parquet` | All years as published (canonical schema) |
+| `pks_kreis_<year>_published.csv.gz` | The same, one file per year |
 | `pks_kreis_panel_<weights>.parquet` | Harmonized panel, `population` or `area` weights |
 | `pks_kreis_<year>_<weights>.csv.gz` | The same, one file per year |
 | `validation_<weights>.json` | Validation gate report |
-| `sources.csv`, `boundary_map.csv`, `offence_map.csv`, `known_breaks.csv` | Registries used for the release |
+| `sources.csv`, `bund_sources.csv`, `reference_sources.csv`, `destatis_sources.csv`, `boundary_map.csv`, `offence_map.csv`, `known_breaks.csv` | Registries used for the release |
+| `ATTRIBUTION.txt` | Source notes and licences of all sources |
 | `manifest.json` | SHA-256, size and rows of every asset, pipeline commit, data notes |
 
 `.github/workflows/pipeline.yml` runs monthly, weekly from March to May, and on demand. It downloads every registered raw file from its source (bka.de through a Cloudflare Worker, because bka.de drops many connections from GitHub runners) and checks its hash, falls back to a private mirror (a draft release) when a source is unreachable, checks the landing pages for republished files, looks for new reporting years on bka.de, builds and validates the panel, runs the tests, and releases when the data changed. Changed source files, failed checks and new years open an issue instead of a release. A newer BBSR crosswalk edition (a new `ref-kreise-1990-<year>.xlsx` on the BBSR page) starts a second job: it points `registry/reference_sources.csv` at the new file, regenerates `registry/boundary_map.csv`, runs a trial build and the tests, pushes the result to a branch `auto/bbsr-<file>` and opens a pull request and an issue with the summary. The new mapping reaches `main` only when the maintainer merges it. Public releases are enabled with the repository variable `PUBLISH_ENABLED`; manual runs with `release = test` create a draft prerelease to check the mechanics.
