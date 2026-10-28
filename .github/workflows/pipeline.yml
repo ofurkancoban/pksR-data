@@ -38,6 +38,9 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Cloudflare Worker for bka.de (ci/proxy/worker.js); unset: direct
+      PKSR_PROXY_URL: ${{ secrets.BKA_PROXY_URL }}
+      PKSR_PROXY_KEY: ${{ secrets.BKA_PROXY_KEY }}
       LANG: C.UTF-8
       LC_ALL: C.UTF-8
       RELEASE_MODE: ${{ github.event_name == 'schedule' && 'publish' || inputs.release }}
