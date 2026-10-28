@@ -6,6 +6,8 @@ kind <- commandArgs(trailingOnly = TRUE)[1]
 run <- sprintf("%s/%s/actions/runs/%s", Sys.getenv("GITHUB_SERVER_URL", "https://github.com"),
                Sys.getenv("GITHUB_REPOSITORY", "ofurkancoban/pksR-data"), Sys.getenv("GITHUB_RUN_ID", ""))
 out <- c(sprintf("Run: %s", run), "")
+# One line, no pipes, so a message cannot break a Markdown table cell
+cell <- function(x) gsub("|", "/", gsub("[[:space:]]+", " ", x %||% ""), fixed = TRUE)
 read_ci <- function(name) {
   f <- file.path(ci_dir, paste0(name, ".json"))
   if (file.exists(f)) jsonlite::read_json(f) else NULL
@@ -18,7 +20,7 @@ if (kind == "failure") {
     bad <- Filter(function(x) x$status %in% c("changed", "failed"), fetch)
     if (length(bad)) {
       out <- c(out, "## Raw files", "", "| registry | label | status | detail |", "|---|---|---|---|",
-               vapply(bad, function(x) sprintf("| %s | %s | %s | %s |", x$registry, x$label, x$status, x$message %||% ""), ""), "")
+               vapply(bad, function(x) sprintf("| %s | %s | %s | %s |", x$registry, x$label, x$status, cell(x$message)), ""), "")
     }
   }
   for (f in list.files("output/validation", "^report_.+\\.json$", full.names = TRUE)) {
