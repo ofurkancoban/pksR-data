@@ -242,7 +242,7 @@ jobs:
                       httr2::resp_header(resp, "content-encoding") %||% "-", httr2::resp_header(resp, "content-length") %||% "-")
             }, error = function(e) paste("error:", conditionMessage(e)))
             sha <- if (file.exists(tmp)) sha256_file(tmp) else NA
-            first <- if (file.exists(tmp)) gsub("[^[:print:]]", ".", rawToChar(readBin(tmp, "raw", 60)[readBin(tmp, "raw", 60) != as.raw(0)])) else ""
+            first <- if (file.exists(tmp)) paste(as.character(readBin(tmp, "raw", 16)), collapse = "") else ""
             cat(sprintf("%s %s | %s | size %s | %s | first: %s\n", inv$registry[i], inv$label[i], res,
                         if (file.exists(tmp)) file.size(tmp) else NA,
                         if (identical(sha, inv$sha256[i])) "HASH OK" else paste("HASH DIFFERS", substr(sha, 1, 10)), first))
