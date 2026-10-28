@@ -219,9 +219,9 @@ Checked on bka.de, bbsr.bund.de, destatis.de and govdata.de (brief Section 10.6)
 | `435*00` | Residential burglary | `burglary` | `wohnungseinbruch` |
 | `436*00` | Daytime residential burglary | `daytime_burglary` | `tageswohnungseinbruch` |
 | `111000` | Rape, sexual coercion and sexual assault in especially serio | `rape_sexual_assault` | `vergewaltigung` |
-| `210000` | Robbery, robbery-like extortion and robbery-like assault on  | `robbery` | `raub` |
-| `211000` | Robbery and robbery-like extortion of banks, post offices an | `bank_robbery` | `raub_geldinstitute` |
-| `212000` | Robbery and robbery-like extortion of other cash desks and s | `shop_robbery` | `raub_kassenraeume` |
+| `210000` | Robbery, extortion by force or threat and assault on motoris | `robbery` | `raub` |
+| `211000` | Robbery and extortion by force or threat against banks, post | `bank_robbery` | `raub_geldinstitute` |
+| `212000` | Robbery and extortion by force or threat against other cash  | `shop_robbery` | `raub_kassenraeume` |
 | `216000` | Handbag robbery | `handbag_robbery` | `handtaschenraub` |
 | `217000` | Other robbery in streets, paths or squares | `street_robbery` | `strassenraub` |
 | `219000` | Robbery in dwellings | `home_robbery` | `raub_wohnungen` |
@@ -236,15 +236,15 @@ Checked on bka.de, bbsr.bund.de, destatis.de and govdata.de (brief Section 10.6)
 | `621020` | Resistance against enforcement officers | `resistance_officers` | `widerstand_vollstreckungsbeamte` |
 | `621021` | Resistance against police officers | `resistance_police` | `widerstand_polizei` |
 | `621100` | Resistance against and assault on enforcement officers and p | `resistance_assault_officers` | `widerstand_angriff_vollstreckungsbeamte` |
-| `621110` | Resistance against enforcement officers and persons of equal | `resistance_officers_equal_status` | `widerstand_gleichstehende_personen` |
+| `621110` | Resistance against enforcement officers and persons of equal | `resistance_officers_equal_status` | `widerstand_vollstreckungsbeamte_gleichstehende` |
 | `621120` | Assault on enforcement officers and persons of equal status | `assault_officers` | `angriff_vollstreckungsbeamte` |
-| `630000` | Accessory after the fact, obstruction of justice (excluding  | `obstruction_of_justice` | `strafvereitelung` |
+| `630000` | Accessory after the fact, obstruction of prosecution or puni | `accessory_obstruction_handling_laundering` | `beguenstigung_strafvereitelung_hehlerei_geldwaesche` |
 | `640000` | Arson and causing a risk of fire | `arson` | `brandstiftung` |
 | `674000` | Criminal damage | `criminal_damage` | `sachbeschaedigung` |
 | `725000` | Offences against the Residence Act, the Asylum Act and the E | `immigration_offences` | `auslaenderrechtliche_verstoesse` |
 | `730000` | Drug offences (unless recorded under another key) | `drug_offences` | `rauschgiftdelikte` |
 | `892000` | Violent crime | `violent_crime` | `gewaltkriminalitaet` |
-| `892500` | Murder, manslaughter and killing on request | `homicide` | `toetungsdelikte` |
+| `892500` | Murder, manslaughter and killing on request | `murder_manslaughter` | `mord_totschlag` |
 | `897000` | Cybercrime | `cybercrime` | `cybercrime` |
 | `899000` | Street crime | `street_crime` | `strassenkriminalitaet` |
 | `899500` | Criminal damage by graffiti, total | `graffiti` | `graffiti` |
@@ -252,3 +252,10 @@ Checked on bka.de, bbsr.bund.de, destatis.de and govdata.de (brief Section 10.6)
 | `980100` | Cybercrime in the narrow sense | `cybercrime_narrow` | `cybercrime_im_engeren_sinne` |
 
 3. You decided that pksR is bilingual throughout: offence labels in the data, messages and errors, README and vignettes, and help pages. This replaces the brief's rule that documentation is in English only (Section 2, rule 1) for pksR; code, comments, commit messages and file names stay English.
+
+## 2026-10-28: Clearer offence names after review
+
+1. Principle (maintainer): short names and English labels must be clear and must not suggest a narrower or broader offence than the key covers. The German labels stay exactly as published by the BKA.
+2. Short names changed (still `status = "draft"`): `630000` from `obstruction_of_justice` / `strafvereitelung` to `accessory_obstruction_handling_laundering` / `beguenstigung_strafvereitelung_hehlerei_geldwaesche` (the key covers four offences, not one); `621110` German name from `widerstand_gleichstehende_personen` to `widerstand_vollstreckungsbeamte_gleichstehende` (the officers were missing); `892500` from `homicide` / `toetungsdelikte` to `murder_manslaughter` / `mord_totschlag` (Toetungsdelikte usually also covers killings outside this key, such as negligent killing).
+3. English labels changed: "robbery-like extortion" and "robbery-like assault on motorists" (keys `210000`, `211000`, `212000`) become "extortion by force or threat" and "assault on motorists with intent to rob" (sections 255 and 316a StGB); for `630000`, "obstruction of justice (excluding in office)" becomes "obstruction of prosecution or punishment (excluding by public officials)" (section 258 StGB, without 258a).
+4. Checked for all 46 keys: no short name or label (normalized) belongs to more than one key, and every short name resolves to exactly its own key in `pksR::pks_get(offence = ...)`.
