@@ -2,6 +2,7 @@
 #
 # Assets of one data release:
 #   pks_kreis_published.parquet          all years as published (canonical)
+#   pks_kreis_<year>_published.csv.gz    the same, one file per year
 #   pks_kreis_panel_<weights>.parquet    harmonized panel per weighting
 #   pks_kreis_<year>_<weights>.csv.gz    the same, one file per year
 #   validation_<weights>.json            validation gate report
@@ -127,6 +128,13 @@ build_release_assets <- function(canonical_files, panel_files, registry_dir, dir
   ensure_dir(dir)
   published <- dplyr::bind_rows(lapply(sort(canonical_files), arrow::read_parquet))
   out <- write_parquet_with_notes(published, file.path(dir, "pks_kreis_published.parquet"), published_notes)
+  # The same per year as CSV, so pksR reads the data as published
+  # without depending on arrow
+  for (d in split(published, published$year)) {
+    path <- file.path(dir, sprintf("pks_kreis_%d_published.csv.gz", unique(d$year)))
+    readr::write_csv(d[order(d$offence_key, d$ags), ], path, na = "")
+    out <- c(out, path)
+  }
 
   for (f in panel_files) {
     name <- basename(f)

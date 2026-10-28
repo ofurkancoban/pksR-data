@@ -16,7 +16,7 @@ release_fixture <- function() {
 test_that("release assets carry the weighting in their names and the notes in the Parquet files", {
   r <- release_fixture()
   expect_setequal(basename(r$assets), c(
-    "pks_kreis_published.parquet", "pks_kreis_panel_population.parquet", "pks_kreis_2019_population.csv.gz",
+    "pks_kreis_published.parquet", "pks_kreis_2019_published.csv.gz", "pks_kreis_panel_population.parquet", "pks_kreis_2019_population.csv.gz",
     "validation_population.json", "sources.csv", "bund_sources.csv", "destatis_sources.csv",
     "reference_sources.csv", "boundary_map.csv", "offence_map.csv", "known_breaks.csv", "ATTRIBUTION.txt"
   ))
