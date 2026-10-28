@@ -18,7 +18,16 @@ github_request <- function(url, token = github_token()) {
     httr2::req_user_agent(pksr_user_agent) |>
     httr2::req_auth_bearer_token(token) |>
     httr2::req_headers(Accept = "application/vnd.github+json", `X-GitHub-Api-Version` = "2022-11-28") |>
-    httr2::req_retry(max_tries = 3)
+    httr2::req_retry(max_tries = 3) |>
+    # Show GitHub's reason with the status (a bare "HTTP 403" in run
+    # 40724008626 did not say why the release was refused)
+    httr2::req_error(body = github_error_body)
+}
+
+github_error_body <- function(resp) {
+  b <- tryCatch(httr2::resp_body_json(resp), error = function(e) NULL)
+  if (is.null(b)) return(NULL)
+  c(b$message, vapply(b$errors %||% list(), function(e) paste(unlist(e), collapse = " "), ""), b$documentation_url)
 }
 
 # All releases including drafts (drafts are visible with push access).
