@@ -59,11 +59,13 @@ jobs:
         id: discover
         run: Rscript ci/discover.R
 
-      - name: Tests
-        run: Rscript -e 'testthat::test_dir("tests/testthat", stop_on_failure = TRUE)'
-
       - name: Build and validate
         run: Rscript -e 'targets::tar_make()'
+
+      # After the build, so the integration tests run on the real outputs
+      # instead of skipping
+      - name: Tests
+        run: Rscript -e 'testthat::test_dir("tests/testthat", stop_on_failure = TRUE)'
 
       - name: Release (dry run)
         if: env.RELEASE_MODE == 'test'
