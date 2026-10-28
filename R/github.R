@@ -60,9 +60,16 @@ github_upload_asset <- function(repo, release_id, path, token = github_token()) 
 }
 
 github_release_assets <- function(repo, release_id, token = github_token()) {
-  resp <- github_request(sprintf("/repos/%s/releases/%s/assets?per_page=100", repo, format(release_id, scientific = FALSE)), token) |>
-    httr2::req_perform()
-  a <- httr2::resp_body_json(resp)
+  a <- list()
+  page <- 1
+  repeat {
+    resp <- github_request(sprintf("/repos/%s/releases/%s/assets?per_page=100&page=%d", repo, format(release_id, scientific = FALSE), page), token) |>
+      httr2::req_perform()
+    batch <- httr2::resp_body_json(resp)
+    a <- c(a, batch)
+    if (length(batch) < 100) break
+    page <- page + 1
+  }
   tibble::tibble(
     id = vapply(a, function(x) as.numeric(x$id), 1),
     name = vapply(a, function(x) x$name, ""),

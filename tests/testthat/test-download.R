@@ -55,3 +55,38 @@ test_that("requests to one host are at least ten seconds apart", {
   # httr2 keeps the throttle outside the request object, so check the code
   expect_match(paste(deparse(body(pksr_request)), collapse = " "), "capacity = 1, fill_time_s = 10)", fixed = TRUE)
 })
+
+test_that("the mirror is used first and its copies are checked against the registry", {
+  dir <- withr::local_tempdir()
+  src <- file.path(dir, "src.txt")
+  writeLines("registered", src)
+  inv <- tibble::tibble(registry = "sources", label = "2099", url = "https://example.invalid/a",
+                        sha256 = sha256_file(src), path = file.path(dir, "raw", "a.txt"), mirror_name = "a.txt")
+  no_source <- function(url, path) stop("source must not be contacted")
+  from_mirror <- function(name, dest) file.copy(src, dest, overwrite = TRUE)
+  res <- fetch_raw(inv, mirror = from_mirror, get = no_source)
+  expect_equal(res$status, "mirrored")
+  expect_identical(readLines(inv$path), "registered")
+  # A corrupt mirror copy is ignored and the source decides
+  unlink(inv$path)
+  corrupt <- function(name, dest) { writeLines("corrupt", dest); TRUE }
+  from_source <- function(url, path) file.copy(src, path, overwrite = TRUE)
+  res <- fetch_raw(inv, mirror = corrupt, get = from_source)
+  expect_equal(res$status, "downloaded")
+  # A file the mirror lacks comes from the source
+  unlink(inv$path)
+  res <- fetch_raw(inv, mirror = function(name, dest) FALSE, get = from_source)
+  expect_equal(res$status, "downloaded")
+})
+
+test_that("mirror asset names keep the folder and are unique", {
+  expect_identical(mirror_asset_name(c("data-raw/2003_pks2003.pdf", "data-raw/bund/2013_x.xls")),
+                   c("2003_pks2003.pdf", "bund__2013_x.xls"))
+  inv <- raw_inventory(file.path(root, "registry"), "data-raw")
+  expect_false(anyDuplicated(inv$mirror_name) > 0)
+  expect_true(all(grepl("^[A-Za-z0-9._-]+$", inv$mirror_name)))
+})
+
+test_that("a request gives up after a bounded time, retries included", {
+  expect_equal(pksr_request("https://example.invalid/a")$policies$retry_max_wait, 300)
+})
