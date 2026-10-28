@@ -57,3 +57,41 @@ jobs:
           probe "bka.de page" "$page" ""
           probe "bka.de pdf (first 1 KB)" "$pdf" "-r 0-1023"
           probe "destatis.de page (control)" "$control" ""
+
+      # Same probes through the Cloudflare Worker in ci/proxy/worker.js, when
+      # the secrets BKA_PROXY_URL and BKA_PROXY_KEY are set. Compares direct
+      # access with access from Cloudflare's network.
+      - name: Timed requests through the Cloudflare Worker
+        continue-on-error: true
+        env:
+          PROXY_URL: ${{ secrets.BKA_PROXY_URL }}
+          PROXY_KEY: ${{ secrets.BKA_PROXY_KEY }}
+        run: |
+          set +e
+          if [ -z "$PROXY_URL" ] || [ -z "$PROXY_KEY" ]; then
+            echo "BKA_PROXY_URL or BKA_PROXY_KEY not set; skipped."
+            exit 0
+          fi
+          enc() { python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$1"; }
+          page="https://www.bka.de/DE/AktuelleInformationen/StatistikenLagebilder/PolizeilicheKriminalstatistik/pks_node.html"
+          pdf="https://www.bka.de/SharedDocs/Downloads/DE/Publikationen/PolizeilicheKriminalstatistik/pksJahrbuecherBis2011/pks2003.pdf?__blob=publicationFile&v=2"
+          fmt='%{http_code} | dns %{time_namelookup}s | tcp %{time_connect}s | tls %{time_appconnect}s | first byte %{time_starttransfer}s | total %{time_total}s | exit '
+          {
+            echo ""
+            echo "| target (via Worker) | attempt | http | timings | curl exit |"
+            echo "|---|---|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          probe() {
+            name="$1"; url="$2"; extra="$3"
+            for i in 1 2 3 4 5; do
+              out=$(curl -sS -o /dev/null -A "$UA" -H "X-Proxy-Key: $PROXY_KEY" --connect-timeout 30 --max-time 60 $extra -w "$fmt" "$PROXY_URL/?url=$(enc "$url")" 2>curl.err); code=$?
+              cat curl.err
+              echo "$name $i: $out$code"
+              http=$(echo "$out" | cut -d'|' -f1)
+              timings=$(echo "$out" | cut -d'|' -f2-6 | sed 's/|/,/g')
+              echo "| $name | $i | $http | $timings | $code |" >> "$GITHUB_STEP_SUMMARY"
+              sleep 15
+            done
+          }
+          probe "bka.de page" "$page" ""
+          probe "bka.de pdf (first 1 KB)" "$pdf" "-r 0-1023"
