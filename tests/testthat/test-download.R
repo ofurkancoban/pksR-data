@@ -53,7 +53,7 @@ test_that("connection failures are retried, not only transient HTTP statuses", {
 
 test_that("requests to one host are at least ten seconds apart", {
   # httr2 keeps the throttle outside the request object, so check the code
-  expect_match(paste(deparse(body(pksr_request)), collapse = " "), "capacity = 1, fill_time_s = 10)", fixed = TRUE)
+  expect_match(gsub("[[:space:]]+", " ", paste(deparse(body(pksr_request)), collapse = " ")), "capacity = 1, fill_time_s = 10)", fixed = TRUE)
 })
 
 test_that("the mirror is used first and its copies are checked against the registry", {

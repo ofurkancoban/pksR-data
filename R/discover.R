@@ -10,10 +10,11 @@
 # the latest reporting year, PKS2025/pks2025_node.html).
 bka_pks_index_url <- "https://www.bka.de/DE/AktuelleInformationen/StatistikenLagebilder/PolizeilicheKriminalstatistik/pks_node.html"
 
-# Pages get two minutes including retries; a missed check is reported, not
-# fatal.
+# Pages get 60 s per attempt and two minutes of retrying; a missed check is
+# reported, not fatal. (An attempt that connects and then stalls is bounded
+# by the attempt timeout, not by the retry limit: run 40724008626.)
 fetch_html <- function(url) {
-  resp <- httr2::req_perform(pksr_request(url, max_seconds = 120))
+  resp <- httr2::req_perform(pksr_request(url, max_seconds = 120, timeout = 60))
   xml2::read_html(httr2::resp_body_string(resp))
 }
 
@@ -77,8 +78,10 @@ discover_new_years <- function(registry_years, fetch = fetch_html, index_url = b
 # file was republished. This replaces downloading every file each month to
 # compare hashes. `files` needs columns registry, label, url, landing_page
 # (raw_inventory()). After three unreachable pages in a row on one host the
-# remaining pages of that host are marked "not checked".
-check_landing_pages <- function(files, fetch = fetch_html, give_up_after = 3) {
+# remaining pages of that host are marked "not checked", and so is every
+# page left when `budget` seconds have passed.
+check_landing_pages <- function(files, fetch = fetch_html, give_up_after = 3, budget = Inf) {
+  deadline <- Sys.time() + budget
   f <- files[!is.na(files$landing_page), ]
   host <- sub("^https?://([^/]+)/.*$", "\\1", f$landing_page)
   misses <- stats::setNames(integer(0), character(0))
@@ -89,6 +92,7 @@ check_landing_pages <- function(files, fetch = fetch_html, give_up_after = 3) {
     }
     h <- host[i]
     if (isTRUE(misses[h] >= give_up_after)) return(row("not checked (host unreachable)"))
+    if (Sys.time() > deadline) return(row("not checked (time budget used up)"))
     page <- f$landing_page[i]
     if (is.null(pages[[page]])) {
       pages[[page]] <<- tryCatch(page_links(fetch(page), page), error = function(e) NA_character_)

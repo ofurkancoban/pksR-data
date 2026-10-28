@@ -6,7 +6,8 @@ source("ci/common.R")
 
 sources <- read_sources("registry/sources.csv")
 new <- tryCatch(discover_new_years(sources$year), error = function(e) e)
-landing <- tryCatch(check_landing_pages(raw_inventory()), error = function(e) e)
+# Ten minutes for all landing pages; the rest is marked "not checked"
+landing <- tryCatch(check_landing_pages(raw_inventory(), budget = 600), error = function(e) e)
 # Unreachable pages are recorded in the status file; only real changes are
 # findings that open an issue.
 changes <- if (inherits(landing, "error")) NULL else landing[landing$status %in% c("republished", "no longer linked"), ]

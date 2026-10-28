@@ -52,3 +52,17 @@ test_that("a landing page shared by several files is fetched once", {
   expect_equal(nrow(check_landing_pages(files, counting)), 0)
   expect_equal(calls, 1)
 })
+
+test_that("landing pages left after the time budget are marked, not fetched", {
+  calls <- 0
+  slow <- function(url) { calls <<- calls + 1; fake_fetch(url) }
+  files <- tibble::tibble(registry = "sources", label = c("a", "b"), url = registered_2025,
+                          landing_page = c("https://www.bka.de/x.html", "https://www.bka.de/y.html"))
+  r <- check_landing_pages(files, slow, budget = -1)
+  expect_equal(calls, 0)
+  expect_true(all(r$status == "not checked (time budget used up)"))
+})
+
+test_that("page requests have a short per-attempt timeout", {
+  expect_match(gsub("[[:space:]]+", " ", paste(deparse(body(fetch_html)), collapse = " ")), "timeout = 60", fixed = TRUE)
+})

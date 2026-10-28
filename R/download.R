@@ -26,15 +26,15 @@ verify_sha256 <- function(path, expected) {
 # random for minutes at a time, whatever the pace (runs 40672047901 to
 # 40706798700), so raw files normally come from the mirror (R/mirror.R) and
 # bka.de is asked only for new or missing files and a few pages. Backoff 5,
-# 10, 20, 40 s; 60 s to connect, 10 min per transfer, and at most
-# `max_seconds` per request including retries, so a dead host cannot hold
-# the job until its timeout.
-pksr_request <- function(url, max_seconds = 300) {
+# 10, 20, 40 s; 60 s to connect, `timeout` seconds per attempt, and at most
+# `max_seconds` of retrying, so a dead host cannot hold the job until its
+# timeout.
+pksr_request <- function(url, max_seconds = 300, timeout = 600) {
   httr2::request(url) |>
     httr2::req_user_agent(pksr_user_agent) |>
     httr2::req_retry(max_tries = 5, max_seconds = max_seconds, retry_on_failure = TRUE, backoff = function(i) 5 * 2^(i - 1)) |>
     # req_timeout() resets connecttimeout, so it comes first
-    httr2::req_timeout(600) |>
+    httr2::req_timeout(timeout) |>
     httr2::req_options(connecttimeout = 60) |>
     # Ten seconds between requests to one host
     httr2::req_throttle(capacity = 1, fill_time_s = 10)
