@@ -196,3 +196,59 @@ Checked on bka.de, bbsr.bund.de, destatis.de and govdata.de (brief Section 10.6)
 2. Values read from the headline above each download link on bka.de (2026-10-28, 427 pages of PKS 2012 to 2025): `V1.0` for the Kreis and Bund tables of 2019 to 2025. The pages of 2012 to 2018 print no version next to the links, although the 2012 to 2015 notice asks for one; the 2003 to 2011 yearbooks have none; the 2013 Kreis xls is no longer linked (only its PDF). These rows stay empty (`NA`). A republished table with a new version also changes its hash, so the fetch step reports it.
 3. "BBSR Bonn [Jahr]" uses the retrieval year of the crosswalk (2026), your decision.
 4. Housekeeping: issues #1 to #6 (failed runs on 2026-10-28, all resolved) closed; the draft release `test-2026.1-run7` deleted (`test-2026.1-run9` kept); the 75-character subject of commit `74e1c83` stays, because fixing it would need a force push. The first scheduled run stays on 2026-11-01.
+
+## 2026-10-28: Offence aliases and a bilingual pksR (your decisions)
+
+1. `pks_get(offence_keys = "------")` was too awkward (your feedback). You chose both short aliases and search by label or key. The offence map gets two columns, `alias_en` and `alias_de`: one short ASCII name per key and language (umlauts written as ae, oe, ue, ss). pksR also accepts the umlaut spelling and spaces.
+2. The aliases are drafts for your review, like the mappings (brief Section 2, rule 9). They only name keys; no key, mapping or value changes. Drafted from the BKA labels:
+
+| key | English label | alias_en | alias_de |
+|---|---|---|---|
+| `------` | Total offences | `total` | `insgesamt` |
+| `890000` | Total offences excluding offences against the Residence, Asy | `total_excl_immigration` | `insgesamt_ohne_auslaenderrecht` |
+| `****00` | Theft, total | `theft` | `diebstahl` |
+| `***100` | Theft of motor cars, total, incl. unauthorized use | `car_theft` | `kfz_diebstahl` |
+| `***200` | Theft of mopeds and motorcycles, total, incl. unauthorized u | `motorcycle_theft` | `kraftrad_diebstahl` |
+| `***300` | Theft of bicycles, total, incl. unauthorized use | `bicycle_theft` | `fahrraddiebstahl` |
+| `*26*00` | Shoplifting, total | `shoplifting` | `ladendiebstahl` |
+| `*50*00` | Theft of parts from and items out of motor vehicles, total | `theft_from_vehicles` | `diebstahl_aus_kfz` |
+| `*90*00` | Pickpocketing, total | `pickpocketing` | `taschendiebstahl` |
+| `3***00` | Theft without aggravating circumstances | `simple_theft` | `einfacher_diebstahl` |
+| `326*00` | Simple shoplifting | `simple_shoplifting` | `einfacher_ladendiebstahl` |
+| `4***00` | Theft under aggravating circumstances | `aggravated_theft` | `schwerer_diebstahl` |
+| `435*00` | Residential burglary | `burglary` | `wohnungseinbruch` |
+| `436*00` | Daytime residential burglary | `daytime_burglary` | `tageswohnungseinbruch` |
+| `111000` | Rape, sexual coercion and sexual assault in especially serio | `rape_sexual_assault` | `vergewaltigung` |
+| `210000` | Robbery, robbery-like extortion and robbery-like assault on  | `robbery` | `raub` |
+| `211000` | Robbery and robbery-like extortion of banks, post offices an | `bank_robbery` | `raub_geldinstitute` |
+| `212000` | Robbery and robbery-like extortion of other cash desks and s | `shop_robbery` | `raub_kassenraeume` |
+| `216000` | Handbag robbery | `handbag_robbery` | `handtaschenraub` |
+| `217000` | Other robbery in streets, paths or squares | `street_robbery` | `strassenraub` |
+| `219000` | Robbery in dwellings | `home_robbery` | `raub_wohnungen` |
+| `220000` | Bodily harm | `bodily_harm` | `koerperverletzung` |
+| `222000` | Dangerous and serious bodily harm, female genital mutilation | `serious_bodily_harm` | `gefaehrliche_koerperverletzung` |
+| `224000` | Intentional simple bodily harm | `simple_bodily_harm` | `einfache_koerperverletzung` |
+| `510000` | Fraud | `fraud` | `betrug` |
+| `515000` | Obtaining services by deception | `obtaining_services_by_deception` | `erschleichen_von_leistungen` |
+| `515001` | Fare evasion | `fare_evasion` | `befoerderungserschleichung` |
+| `530000` | Embezzlement | `embezzlement` | `unterschlagung` |
+| `540000` | Forgery of documents | `forgery` | `urkundenfaelschung` |
+| `621020` | Resistance against enforcement officers | `resistance_officers` | `widerstand_vollstreckungsbeamte` |
+| `621021` | Resistance against police officers | `resistance_police` | `widerstand_polizei` |
+| `621100` | Resistance against and assault on enforcement officers and p | `resistance_assault_officers` | `widerstand_angriff_vollstreckungsbeamte` |
+| `621110` | Resistance against enforcement officers and persons of equal | `resistance_officers_equal_status` | `widerstand_gleichstehende_personen` |
+| `621120` | Assault on enforcement officers and persons of equal status | `assault_officers` | `angriff_vollstreckungsbeamte` |
+| `630000` | Accessory after the fact, obstruction of justice (excluding  | `obstruction_of_justice` | `strafvereitelung` |
+| `640000` | Arson and causing a risk of fire | `arson` | `brandstiftung` |
+| `674000` | Criminal damage | `criminal_damage` | `sachbeschaedigung` |
+| `725000` | Offences against the Residence Act, the Asylum Act and the E | `immigration_offences` | `auslaenderrechtliche_verstoesse` |
+| `730000` | Drug offences (unless recorded under another key) | `drug_offences` | `rauschgiftdelikte` |
+| `892000` | Violent crime | `violent_crime` | `gewaltkriminalitaet` |
+| `892500` | Murder, manslaughter and killing on request | `homicide` | `toetungsdelikte` |
+| `897000` | Cybercrime | `cybercrime` | `cybercrime` |
+| `899000` | Street crime | `street_crime` | `strassenkriminalitaet` |
+| `899500` | Criminal damage by graffiti, total | `graffiti` | `graffiti` |
+| `972500` | Persons who entered or stayed without permission (keys 72510 | `unauthorized_entry_stay` | `unerlaubte_einreise_aufenthalt` |
+| `980100` | Cybercrime in the narrow sense | `cybercrime_narrow` | `cybercrime_im_engeren_sinne` |
+
+3. You decided that pksR is bilingual throughout: offence labels in the data, messages and errors, README and vignettes, and help pages. This replaces the brief's rule that documentation is in English only (Section 2, rule 1) for pksR; code, comments, commit messages and file names stay English.
