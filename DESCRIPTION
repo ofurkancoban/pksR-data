@@ -1,0 +1,26 @@
+Package: pksRdata
+Title: Data Pipeline for German Police Crime Statistics (PKS)
+Version: 0.0.0.9000
+Authors@R: person("Ömer Furkan", "Çoban", email = "ofurkancoban@gmail.com", role = c("aut", "cre"))
+Description: Not an installable package. This file only declares the R
+    packages the pipeline in this repository needs, so that CI can install
+    them (r-lib/actions/setup-r-dependencies).
+Encoding: UTF-8
+Imports:
+    arrow,
+    cli,
+    digest,
+    dplyr,
+    httr2,
+    jsonlite,
+    pdftools,
+    readr,
+    readxl,
+    targets,
+    tibble,
+    xml2
+Suggests:
+    qpdf,
+    testthat (>= 3.0.0),
+    withr,
+    writexl
