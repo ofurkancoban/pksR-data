@@ -120,5 +120,12 @@ list(
     },
     pattern = map(weights),
     format = "file"
+  ),
+
+  # Release assets (uploaded by ci/release.R, never by tar_make())
+  tar_target(
+    release_assets,
+    build_release_assets(canonical_file, panel_file, "registry", "output/release"),
+    format = "file"
   )
 )
