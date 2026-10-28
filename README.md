@@ -11,7 +11,7 @@ The pipeline downloads the district tables published by the Bundeskriminalamt (B
 | 0 | Audit of the legacy scripts, bug register | done |
 | 1 | Registry, canonical schema, extractors for 2003 to 2025 | done |
 | 2 | Territorial and offence harmonization, validation gate | done |
-| 3 | Release mechanics (manifest, Parquet and CSV.gz, GitHub releases, CI) | planned |
+| 3 | Release mechanics (manifest, Parquet and CSV.gz, GitHub releases, CI) | in review |
 
 Offence key mappings, manual territorial rows and known methodological breaks are research decisions and remain `status = "draft"` until reviewed.
 
@@ -56,6 +56,21 @@ Every harmonized panel must pass: schema, uniqueness (`year`, `ags`, `offence_ke
 3. `clearance_rate` is 0 where cases are 0. This follows the BKA tables and is not a real rate; the note is stored in the Parquet metadata (`pksR_notes`) and printed by `pksR` on load.
 4. Known methodological breaks (offence key changes, census-based population revisions, the 2024 cannabis law) are listed in `registry/known_breaks.csv`.
 
+## Releases and automation
+
+Data releases are GitHub releases of this repository, tagged `v<year>.<n>` (for example `v2026.1`). Published releases are never changed; a correction is a new version. Each release holds:
+
+| Asset | Content |
+|---|---|
+| `pks_kreis_published.parquet` | All years as published (canonical schema) |
+| `pks_kreis_panel_<weights>.parquet` | Harmonized panel, `population` or `area` weights |
+| `pks_kreis_<year>_<weights>.csv.gz` | The same, one file per year |
+| `validation_<weights>.json` | Validation gate report |
+| `sources.csv`, `boundary_map.csv`, `offence_map.csv`, `known_breaks.csv` | Registries used for the release |
+| `manifest.json` | SHA-256, size and rows of every asset, pipeline commit, data notes |
+
+`.github/workflows/pipeline.yml` runs monthly, weekly from March to May, and on demand. It downloads every registered raw file and checks its hash, looks for new reporting years on bka.de, runs the tests, builds and validates the panel, and releases when the data changed. Changed source files, failed checks and new years open an issue instead of a release. Public releases are enabled with the repository variable `PUBLISH_ENABLED`; manual runs with `release = test` create a draft prerelease to check the mechanics.
+
 ## Layout
 
 | Path | Content |
@@ -68,6 +83,9 @@ Every harmonized panel must pass: schema, uniqueness (`year`, `ags`, `offence_ke
 | `registry/offence_map.csv` | Offence key harmonization (draft) |
 | `registry/known_breaks.csv` | Methodological breaks with comparability assessment (draft) |
 | `registry/bund_sources.csv` | National case tables 2013 to 2025, used only by the validation gate |
+| `registry/reference_sources.csv` | BBSR crosswalk file |
+| `ci/` | Scripts run by the workflows: fetch, discovery, release, status, issue text |
+| `.github/workflows/` | `pipeline.yml`, `keepalive.yml`, `tests.yml` |
 | `tests/testthat/` | Regression tests, offline, on small fixtures |
 | `notes/` | Audit, bug register, design decisions, legacy comparison |
 
@@ -76,10 +94,10 @@ Every harmonized panel must pass: schema, uniqueness (`year`, `ags`, `offence_ke
 Tested with R 4.6.0. Requires `targets`, `readxl`, `pdftools`, `arrow`, `readr`, `dplyr`, `tibble`, `cli`, `httr2`, `digest`, `jsonlite`, `testthat` and `withr`. Run from the repository root in a UTF-8 locale.
 
 ```r
-# Raw files are not committed. Download them from the URLs in the registries
-# (see R/download.R) and check them against the recorded SHA-256:
+# Raw files are not committed. `Rscript ci/fetch.R` downloads them from the
+# registries and checks them against the recorded SHA-256:
 #   data-raw/                      PKS Kreis tables (registry/sources.csv)
-#   data-raw/bbsr/ref-kreise-1990-2024.xlsx   BBSR crosswalk
+#   data-raw/bbsr/                 BBSR crosswalk (registry/reference_sources.csv)
 #   data-raw/bund/                 Bund tables (registry/bund_sources.csv)
 #   data-raw/destatis/             Destatis change lists (registry/destatis_sources.csv)
 targets::tar_make()
@@ -91,6 +109,7 @@ Output:
 - `output/canonical/pks_kreis_<year>.parquet`: one file per year 2003 to 2025, as published.
 - `output/harmonized/<weights>/pks_kreis_panel.parquet` and `pks_kreis_<year>.csv.gz`: harmonized panel for population and area weights.
 - `output/validation/report_<weights>.json`: result of the validation gate.
+- `output/release/`: the assets of the next release (uploaded by `ci/release.R`).
 
 ## Sources and attribution
 

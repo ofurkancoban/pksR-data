@@ -485,7 +485,7 @@ Evidence scripts are kept in `notes/audit/` (audit only, not pipeline code).
 | evidence | `find 01_datasets/raw/PKS` lists only the 12 Excel files. The PDFs exist locally in `../PKS/Data/`. |
 | affected_output | none |
 | fix | Raw files with hashes in `registry/sources.csv`; test fixtures from small excerpts. |
-| test | `test-registry.R` (hashes recorded); raw files are reproducible from `registry/sources.csv` via `download_source()` |
+| test | `test-registry.R` (hashes recorded); raw files are reproducible from `registry/sources.csv` via `fetch_raw()` |
 | status | fixed |
 
 ### BUG-028
