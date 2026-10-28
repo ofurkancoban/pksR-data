@@ -113,9 +113,16 @@ jobs:
         continue-on-error: true
         run: |
           set +e
-          for variant in plain commitish; do
+          # parent: a commit whose workflow files differ from the default
+          # branch head (this commit changes diagnose.yml)
+          parent=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA" --jq '.parents[0].sha')
+          for variant in plain commitish parent; do
             tag="probe-${GITHUB_RUN_ID}-${variant}"
-            if [ "$variant" = commitish ]; then extra=(-f "target_commitish=$GITHUB_SHA"); else extra=(); fi
+            case "$variant" in
+              commitish) extra=(-f "target_commitish=$GITHUB_SHA") ;;
+              parent) extra=(-f "target_commitish=$parent") ;;
+              *) extra=() ;;
+            esac
             echo "::group::$variant"
             gh api -X POST "repos/$GITHUB_REPOSITORY/releases" -f "tag_name=$tag" -F draft=true -F prerelease=true "${extra[@]}" > out.json 2> err.txt
             code=$?
