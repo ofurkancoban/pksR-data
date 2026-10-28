@@ -56,27 +56,51 @@ test_that("requests to one host are at least ten seconds apart", {
   expect_match(gsub("[[:space:]]+", " ", paste(deparse(body(pksr_request)), collapse = " ")), "capacity = 1, fill_time_s = 10)", fixed = TRUE)
 })
 
-test_that("the mirror is used first and its copies are checked against the registry", {
+test_that("the source comes first and the mirror only when the source is unreachable", {
   dir <- withr::local_tempdir()
   src <- file.path(dir, "src.txt")
   writeLines("registered", src)
   inv <- tibble::tibble(registry = "sources", label = "2099", url = "https://example.invalid/a",
                         sha256 = sha256_file(src), path = file.path(dir, "raw", "a.txt"), mirror_name = "a.txt")
-  no_source <- function(url, path) stop("source must not be contacted")
+  from_source <- function(url, path) file.copy(src, path, overwrite = TRUE)
+  no_mirror <- function(name, dest) stop("mirror must not be contacted")
+  res <- fetch_raw(inv, mirror = no_mirror, get = from_source)
+  expect_equal(res$status, "downloaded")
+  # Source unreachable: the mirror copy, checked against the registry
+  unlink(inv$path)
+  unreachable <- function(url, path) stop("Timeout was reached")
   from_mirror <- function(name, dest) file.copy(src, dest, overwrite = TRUE)
-  res <- fetch_raw(inv, mirror = from_mirror, get = no_source)
+  res <- fetch_raw(inv, mirror = from_mirror, get = unreachable)
   expect_equal(res$status, "mirrored")
+  expect_match(res$message, "source unreachable: Timeout")
   expect_identical(readLines(inv$path), "registered")
-  # A corrupt mirror copy is ignored and the source decides
+  # A corrupt mirror copy is not used
   unlink(inv$path)
   corrupt <- function(name, dest) { writeLines("corrupt", dest); TRUE }
-  from_source <- function(url, path) file.copy(src, path, overwrite = TRUE)
-  res <- fetch_raw(inv, mirror = corrupt, get = from_source)
-  expect_equal(res$status, "downloaded")
-  # A file the mirror lacks comes from the source
-  unlink(inv$path)
-  res <- fetch_raw(inv, mirror = function(name, dest) FALSE, get = from_source)
-  expect_equal(res$status, "downloaded")
+  res <- fetch_raw(inv, mirror = corrupt, get = unreachable)
+  expect_equal(res$status, "failed")
+  expect_false(file.exists(inv$path))
+  # A changed source file is reported; the mirror does not cover it up
+  republished <- function(url, path) writeLines("republished", path)
+  res <- fetch_raw(inv, mirror = no_mirror, get = republished, drift_dir = file.path(dir, "drift"))
+  expect_equal(res$status, "changed")
+  expect_false(file.exists(inv$path))
+})
+
+test_that("only bka.de requests go through the Worker, with the key header", {
+  proxy <- list(url = "https://worker.example.dev/", key = "k")
+  r <- route_request("https://www.bka.de/a.pdf?__blob=publicationFile&v=2", proxy)
+  expect_identical(r$url, "https://worker.example.dev/?url=https%3A%2F%2Fwww.bka.de%2Fa.pdf%3F__blob%3DpublicationFile%26v%3D2")
+  expect_identical(r$headers, list(`X-Proxy-Key` = "k"))
+  expect_identical(route_request("https://www.destatis.de/x.xlsx", proxy)$url, "https://www.destatis.de/x.xlsx")
+  expect_identical(route_request("https://www.bka.de/a", NULL)$url, "https://www.bka.de/a")
+  withr::local_envvar(PKSR_PROXY_URL = "", PKSR_PROXY_KEY = "")
+  expect_null(proxy_config())
+})
+
+test_that("Cloudflare 5xx answers such as 525 are retried", {
+  expect_true(all(c(429, 502, 503, 504, 525) %in% transient_status))
+  expect_false(any(c(403, 404) %in% transient_status))
 })
 
 test_that("mirror asset names keep the folder and are unique", {

@@ -21,18 +21,48 @@ verify_sha256 <- function(path, expected) {
   invisible(actual)
 }
 
-# Connection failures are retried too (httr2 retries only transient HTTP
-# statuses by default). From GitHub runners, bka.de drops connections at
-# random for minutes at a time, whatever the pace (runs 40672047901 to
-# 40706798700), so raw files normally come from the mirror (R/mirror.R) and
-# bka.de is asked only for new or missing files and a few pages. Backoff 5,
-# 10, 20, 40 s; 60 s to connect, `timeout` seconds per attempt, and at most
-# `max_seconds` of retrying, so a dead host cannot hold the job until its
-# timeout.
-pksr_request <- function(url, max_seconds = 300, timeout = 600) {
-  httr2::request(url) |>
+# From GitHub runners, bka.de drops connections at random for minutes at a
+# time, whatever the pace (runs 40672047901 to 40706798700). Through the
+# Cloudflare Worker in ci/proxy/worker.js 8 of 10 requests succeeded, in
+# under a second, against 4 of 10 directly (notes/decisions.md). So when
+# PKSR_PROXY_URL and PKSR_PROXY_KEY are set, requests to www.bka.de go
+# through the Worker; other hosts are asked directly. The Worker passes the
+# User-Agent on, and every file is still checked against its registered
+# SHA-256.
+proxy_hosts <- "www.bka.de"
+
+proxy_config <- function() {
+  url <- Sys.getenv("PKSR_PROXY_URL")
+  key <- Sys.getenv("PKSR_PROXY_KEY")
+  if (!nzchar(url) || !nzchar(key)) return(NULL)
+  list(url = trimws(url), key = trimws(key))
+}
+
+# The URL to request and the extra headers for `url`.
+route_request <- function(url, proxy = proxy_config()) {
+  host <- sub("^https?://([^/:]+).*$", "\\1", url)
+  if (is.null(proxy) || !host %in% proxy_hosts) return(list(url = url, headers = list()))
+  list(url = paste0(sub("/+$", "", proxy$url), "/?url=", utils::URLencode(url, reserved = TRUE)),
+       headers = list(`X-Proxy-Key` = proxy$key))
+}
+
+# Retried: connection failures (httr2 retries only transient HTTP statuses
+# by default), 429, server errors and Cloudflare's 520 to 526 (525: the
+# Worker could not complete TLS with bka.de). Backoff 5, 10, 20, 40 s; 60 s
+# to connect, `timeout` seconds per attempt, and at most `max_seconds` of
+# retrying, so a dead host cannot hold the job until its timeout.
+transient_status <- c(429, 500, 502, 503, 504, 520:526)
+
+pksr_request <- function(url, max_seconds = 300, timeout = 600, proxy = proxy_config()) {
+  route <- route_request(url, proxy)
+  httr2::request(route$url) |>
+    httr2::req_headers(!!!route$headers, .redact = "X-Proxy-Key") |>
     httr2::req_user_agent(pksr_user_agent) |>
-    httr2::req_retry(max_tries = 5, max_seconds = max_seconds, retry_on_failure = TRUE, backoff = function(i) 5 * 2^(i - 1)) |>
+    httr2::req_retry(
+      max_tries = 5, max_seconds = max_seconds, retry_on_failure = TRUE,
+      is_transient = function(resp) httr2::resp_status(resp) %in% transient_status,
+      backoff = function(i) 5 * 2^(i - 1)
+    ) |>
     # req_timeout() resets connecttimeout, so it comes first
     httr2::req_timeout(timeout) |>
     httr2::req_options(connecttimeout = 60) |>
@@ -69,13 +99,15 @@ raw_inventory <- function(registry_dir = "registry", raw_dir = "data-raw") {
 }
 
 # Makes every file of the inventory available with the registered hash, in
-# this order: the local copy, the mirror (`mirror(name, dest)` returns FALSE
-# when it lacks the file), the source URL. Every copy is checked against the
-# registered SHA-256. A source file with another hash never replaces the
-# registered one: it goes to `drift_dir` and is reported, so the pipeline
-# keeps running on registered data only and the maintainer decides.
-# Returns one row per file: status "present", "mirrored", "downloaded",
-# "changed" or "failed".
+# this order: the local copy, the source URL (through the Worker for
+# bka.de), the mirror (`mirror(name, dest)` returns FALSE when it lacks the
+# file). Every copy is checked against the registered SHA-256.
+#   "present"     local copy with the registered hash
+#   "downloaded"  fetched from the source
+#   "mirrored"    source unreachable, taken from the mirror (message: why)
+#   "changed"     the source serves another file: kept in `drift_dir`, never
+#                 replaced by the mirror copy, so the maintainer decides
+#   "failed"      neither source nor mirror
 fetch_raw <- function(inventory, refresh = FALSE, drift_dir = "data-raw/_drift", get = download_file, mirror = NULL) {
   status <- character(nrow(inventory))
   actual <- rep(NA_character_, nrow(inventory))
@@ -92,32 +124,32 @@ fetch_raw <- function(inventory, refresh = FALSE, drift_dir = "data-raw/_drift",
       next
     }
     tmp <- tempfile()
-    if (!refresh && !is.null(mirror)) {
-      got <- tryCatch(mirror(inventory$mirror_name[i], tmp), error = function(e) FALSE)
-      if (isTRUE(got) && identical(sha256_file(tmp), inventory$sha256[i])) {
-        put(tmp, path)
-        status[i] <- "mirrored"
-        actual[i] <- inventory$sha256[i]
-        unlink(tmp)
-        next
-      }
-      # A mirror copy with another hash is ignored; the source decides.
-    }
     res <- tryCatch(get(inventory$url[i], tmp), error = function(e) e)
-    if (inherits(res, "error")) {
-      status[i] <- "failed"
-      message[i] <- conditionMessage(res)
+    if (!inherits(res, "error")) {
+      actual[i] <- sha256_file(tmp)
+      if (identical(actual[i], inventory$sha256[i])) {
+        put(tmp, path)
+        status[i] <- "downloaded"
+      } else {
+        keep <- file.path(ensure_dir(drift_dir), basename(path))
+        file.copy(tmp, keep, overwrite = TRUE)
+        status[i] <- "changed"
+        message[i] <- paste("new file kept in", keep)
+      }
+      unlink(tmp)
       next
     }
-    actual[i] <- sha256_file(tmp)
-    if (identical(actual[i], inventory$sha256[i])) {
+    source_error <- conditionMessage(res)
+    got <- !is.null(mirror) && isTRUE(tryCatch(mirror(inventory$mirror_name[i], tmp), error = function(e) FALSE))
+    # A mirror copy with another hash is not used
+    if (got && identical(sha256_file(tmp), inventory$sha256[i])) {
       put(tmp, path)
-      status[i] <- "downloaded"
+      status[i] <- "mirrored"
+      actual[i] <- inventory$sha256[i]
+      message[i] <- paste("source unreachable:", source_error)
     } else {
-      keep <- file.path(ensure_dir(drift_dir), basename(path))
-      file.copy(tmp, keep, overwrite = TRUE)
-      status[i] <- "changed"
-      message[i] <- paste("new file kept in", keep)
+      status[i] <- "failed"
+      message[i] <- source_error
     }
     unlink(tmp)
   }

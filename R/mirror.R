@@ -1,11 +1,14 @@
 # Private mirror of the registered raw files: one draft release of this
 # repository (tag "raw-mirror"), visible only to maintainers, so the BKA
-# files are not redistributed publicly. The registries stay the source of
-# truth: every mirror copy is checked against the registered SHA-256, and a
-# file missing in the mirror is fetched from its source URL.
+# files are not redistributed publicly. It is the fallback, not the source:
+# fetch_raw() asks the source first (bka.de through the Cloudflare Worker)
+# and takes a mirror copy only when the source is unreachable, checked
+# against the registered SHA-256 like every other copy.
 #
-# Why: bka.de drops connections from GitHub runners at random, for minutes
-# at a time and whatever the pace (notes/decisions.md).
+# Why keep it: bka.de is not reliably reachable from GitHub runners, even
+# through the Worker (HTTP 525 in 2 of 10 probes), and a file BKA removes or
+# moves would otherwise make its year impossible to rebuild
+# (notes/decisions.md).
 
 mirror_tag <- "raw-mirror"
 
