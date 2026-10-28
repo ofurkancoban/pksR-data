@@ -16,7 +16,9 @@ test_that("Bund columns are found by header text in old and new layouts", {
 test_that("district sums lie within the documented bound (Section 7.4)", {
   y <- 2024
   b <- extract_bund(bund_file(y), list(year = y, sha256 = NA, sheet = NA))
-  k <- arrow::read_parquet(file.path(root, "output", "canonical", "pks_kreis_2024.parquet"))
+  canonical <- file.path(root, "output", "canonical", "pks_kreis_2024.parquet")
+  skip_if_not(file.exists(canonical), "canonical output not built")
+  k <- arrow::read_parquet(canonical)
   s <- tapply(k$cases, k$offence_key, sum)
   m <- merge(data.frame(offence_key = names(s), districts = as.numeric(s)), b, by = "offence_key")
   expect_identical(nrow(m), length(s))
