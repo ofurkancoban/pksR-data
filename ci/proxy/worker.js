@@ -36,11 +36,28 @@ export default {
     const range = request.headers.get("Range");
     if (range) headers.set("Range", range);
     const upstream = await fetch(url.toString(), { headers, redirect: "follow" });
+    // The whole body is read before answering: bka.de sometimes drops the
+    // connection mid-transfer, and a streamed answer without a length then
+    // looks complete to the client (3 truncated files with HTTP 200 in
+    // diagnose run 40746772308). An incomplete transfer becomes HTTP 502,
+    // which the pipeline retries.
+    let body;
+    try {
+      body = await upstream.arrayBuffer();
+    } catch (e) {
+      return new Response("Upstream transfer failed.", { status: 502 });
+    }
+    const declared = upstream.headers.get("content-length");
+    const encoded = upstream.headers.get("content-encoding");
+    if (declared && !encoded && Number(declared) !== body.byteLength) {
+      return new Response("Upstream transfer incomplete.", { status: 502 });
+    }
     const out = new Headers();
-    for (const h of ["content-type", "content-length", "etag", "last-modified", "content-range"]) {
+    for (const h of ["content-type", "etag", "last-modified", "content-range"]) {
       const v = upstream.headers.get(h);
       if (v) out.set(h, v);
     }
-    return new Response(upstream.body, { status: upstream.status, headers: out });
+    out.set("content-length", String(body.byteLength));
+    return new Response(body, { status: upstream.status, headers: out });
   },
 };
