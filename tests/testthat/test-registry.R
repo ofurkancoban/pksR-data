@@ -25,3 +25,9 @@ test_that("page ranges are parsed strictly", {
   expect_identical(parse_pages("253-259"), 253:259)
   expect_error(parse_pages("253"), "Invalid page range")
 })
+
+test_that("table versions look like the BKA prints them or are missing", {
+  expect_true(check_pks_version(c("V1.0", "V2.1", NA), "sources.csv"))
+  expect_error(check_pks_version(c("V1.0", "1.0"), "sources.csv"), "pks_version")
+  expect_error(check_pks_version("Version 1.0", "bund_sources.csv"), "pks_version")
+})

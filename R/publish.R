@@ -42,7 +42,7 @@ source_attributions <- function(registry_dir, years) {
       provider = "Bundeskriminalamt (BKA)",
       dataset = "Polizeiliche Kriminalstatistik (PKS), case tables for Kreise and for the Bund",
       license = data_license$id, license_url = data_license$url,
-      source_note = sprintf("PKS Bundeskriminalamt, reporting years %d to %d, table versions as published at the URLs in sources.csv and bund_sources.csv", min(years), max(years)),
+      source_note = sprintf("PKS Bundeskriminalamt, reporting years %d to %d, table versions in column pks_version of sources.csv and bund_sources.csv", min(years), max(years)),
       registry = c("sources.csv", "bund_sources.csv")
     ),
     list(

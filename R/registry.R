@@ -5,8 +5,18 @@ sources_columns <- c(
   "year", "table_id", "format", "url", "landing_page", "encoding",
   "skip_rows", "sheet", "sha256", "etag", "retrieved_at", "parser", "notes",
   # Additions to the brief's contract (listed for review in decisions.md):
-  "file_name", "pages", "boundary_year"
+  "file_name", "pages", "boundary_year",
+  # Table version as printed by the BKA above the download link ("V1.0");
+  # the BKA source note requires it (notes/decisions.md, 2026-10-28)
+  "pks_version"
 )
+
+# NA where the BKA prints no version (the PDF yearbooks)
+check_pks_version <- function(v, path) {
+  bad <- !is.na(v) & !grepl("^V[0-9]+\\.[0-9]+$", v)
+  if (any(bad)) cli::cli_abort("{.file {path}}: {.field pks_version} must look like {.val V1.0}: {.val {unique(v[bad])}}")
+  invisible(TRUE)
+}
 
 read_sources <- function(path) {
   s <- readr::read_csv(path, col_types = readr::cols(.default = "c"), na = "")
@@ -23,6 +33,7 @@ read_sources <- function(path) {
   if (!all(s$parser %in% c("extract_pdf", "extract_xls"))) {
     cli::cli_abort("Unknown parser in {.file {path}}")
   }
+  check_pks_version(s$pks_version, path)
   s[order(s$year), sources_columns]
 }
 

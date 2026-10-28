@@ -38,7 +38,9 @@ trial <- function(year, url, landing_page) {
     url = url, landing_page = landing_page, sha256 = sha256_file(tmp), parser = "extract_xls",
     file_name = paste0(year, "_", basename(sub("\\?.*$", "", url))), boundary_year = year,
     # Layout of the latest registered year: the trial tests whether it holds
-    sheet = last$sheet, skip_rows = last$skip_rows
+    sheet = last$sheet, skip_rows = last$skip_rows,
+    # Read it from the headline above the link on the landing page
+    pks_version = NA
   )
   parsed <- tryCatch({
     d <- extract_xls(tmp, row)

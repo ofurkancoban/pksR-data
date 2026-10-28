@@ -13,7 +13,7 @@ national_slack <- function(bund_cases) pmax(5, 0.001 * bund_cases)
 
 bund_sources_columns <- c(
   "year", "table_id", "format", "url", "landing_page", "sha256", "etag",
-  "retrieved_at", "file_name", "sheet", "notes"
+  "retrieved_at", "file_name", "sheet", "notes", "pks_version"
 )
 
 read_bund_sources <- function(path) {
@@ -25,6 +25,7 @@ read_bund_sources <- function(path) {
   if (anyDuplicated(s$year) || anyNA(s$url) || anyNA(s$sha256)) {
     cli::cli_abort("{.file {path}}: one row per year with URL and hash required.")
   }
+  check_pks_version(s$pks_version, path)
   s[order(s$year), ]
 }
 
