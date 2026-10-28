@@ -189,3 +189,10 @@ Checked on bka.de, bbsr.bund.de, destatis.de and govdata.de (brief Section 10.6)
    2. Destatis rows are recomputed as drafts; a row you set to `reviewed` keeps that status as long as its weights are unchanged.
    3. The summary lists added, changed and removed rows per source, and warns when the Destatis lists do not yet cover the new period (transfers BBSR omits cannot be checked then).
 5. The repository setting "Allow GitHub Actions to create and approve pull requests" is off (checked 2026-10-28). Until it is switched on, the job pushes the branch and the issue names it instead of linking a pull request.
+
+## 2026-10-28: Table versions and remaining attribution decisions (your decisions)
+
+1. Column name `pks_version` (your choice) in `sources.csv` and `bund_sources.csv`: the BKA asks for the version of the PKS table, and the name stays distinct from the release `data_version`.
+2. Values read from the headline above each download link on bka.de (2026-10-28, 427 pages of PKS 2012 to 2025): `V1.0` for the Kreis and Bund tables of 2019 to 2025. The pages of 2012 to 2018 print no version next to the links, although the 2012 to 2015 notice asks for one; the 2003 to 2011 yearbooks have none; the 2013 Kreis xls is no longer linked (only its PDF). These rows stay empty (`NA`). A republished table with a new version also changes its hash, so the fetch step reports it.
+3. "BBSR Bonn [Jahr]" uses the retrieval year of the crosswalk (2026), your decision.
+4. Housekeeping: issues #1 to #6 (failed runs on 2026-10-28, all resolved) closed; the draft release `test-2026.1-run7` deleted (`test-2026.1-run9` kept); the 75-character subject of commit `74e1c83` stays, because fixing it would need a force push. The first scheduled run stays on 2026-11-01.
