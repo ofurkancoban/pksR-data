@@ -1,0 +1,105 @@
+# pksR-data
+
+Data pipeline behind the `pksR` R package for German Police Crime Statistics (Polizeiliche Kriminalstatistik, PKS) at district (Kreis) level.
+
+The pipeline downloads the district tables published by the Bundeskriminalamt (BKA), extracts them from their original formats (PDF for 2003 to 2012, XLS/XLSX from 2013), harmonizes them to one territorial boundary and one offence classification, and validates every output before anything is published. Users do not run this pipeline: they read the published data releases with the `pksR` package (in development).
+
+## Status
+
+| Phase | Content | State |
+|---|---|---|
+| 0 | Audit of the legacy scripts, bug register | done |
+| 1 | Registry, canonical schema, extractors for 2003 to 2025 | done |
+| 2 | Territorial and offence harmonization, validation gate | done |
+| 3 | Release mechanics (manifest, Parquet and CSV.gz, GitHub releases, CI) | planned |
+
+Offence key mappings, manual territorial rows and known methodological breaks are research decisions and remain `status = "draft"` until reviewed.
+
+## How it works
+
+```
+registry/sources.csv          one verified URL and SHA-256 per year
+        |
+        v
+extract_pdf() / extract_xls()  one canonical long table per year (as published)
+        |
+        v
+harmonize_space()             BBSR crosswalk + manual rows + Destatis transfers,
+        |                     counts moved with population or area weights
+        v
+harmonize_offences()          registry/offence_map.csv
+        |
+        v
+validation_gate()             stops the pipeline when any check fails
+        |
+        v
+output/harmonized/<weights>/  Parquet panel and one CSV.gz per year
+```
+
+The pipeline is defined with [`targets`](https://docs.ropensci.org/targets/), so a year is rebuilt only when its raw file, its registry row or the code it depends on changes.
+
+### Harmonization
+
+1. Target boundary: the latest boundary covered by the crosswalk (currently 31.12.2025, 400 districts); configurable in `_targets.R`.
+2. Forward only. Mergers are exact; splits use population (default) or area weights and are flagged `estimated = TRUE`.
+3. Counts are harmonized, never rates. HZ and clearance rates are recomputed after harmonization.
+4. Crosswalk: BBSR Umsteigeschlüssel (`ref-kreise`), reproduced cell by cell in `registry/boundary_map.csv`. Deviations are explicit rows: `manual` rows replace a BBSR row and state their evidence; `destatis` rows add territorial transfers that BBSR omits, derived from the Destatis lists of municipal territorial changes and recomputed from those files on every run.
+
+### Validation gate
+
+Every harmonized panel must pass: schema, uniqueness (`year`, `ags`, `offence_key`), coverage (expected district count, Berlin and Hamburg every year), aggregation against the national (Bund) tables 2013 to 2025, conservation of national totals through harmonization, plausibility (no negative counts, attempts not above cases, plausible derived population), and year completeness. A failed check writes `output/validation/report_<weights>.json` and nothing is written to `output/harmonized/`.
+
+### Data notes
+
+1. PDF years (2003 to 2012) publish population, HZ and clearance rates only. Case counts for those years are back-calculated (`cases_derived`, `cleared_derived`) and flagged `estimated = TRUE`.
+2. The Kreis tables 2013 to 2025 publish no population except 2020; `derived_population` is computed as `cases / hz * 1e5` and flagged as derived.
+3. `clearance_rate` is 0 where cases are 0. This follows the BKA tables and is not a real rate; the note is stored in the Parquet metadata (`pksR_notes`) and printed by `pksR` on load.
+4. Known methodological breaks (offence key changes, census-based population revisions, the 2024 cannabis law) are listed in `registry/known_breaks.csv`.
+
+## Layout
+
+| Path | Content |
+|---|---|
+| `_targets.R` | Pipeline definition |
+| `R/` | Pipeline functions: download, extraction, schema, harmonization, validation |
+| `registry/sources.csv` | One row per year: verified URL, SHA-256, page range or sheet, published boundary |
+| `registry/boundary_map.csv` | Territorial crosswalk 2003 to 2025 in long form (BBSR, manual and Destatis rows) |
+| `registry/destatis_sources.csv` | Destatis lists of municipal territorial changes 2003 to 2025 |
+| `registry/offence_map.csv` | Offence key harmonization (draft) |
+| `registry/known_breaks.csv` | Methodological breaks with comparability assessment (draft) |
+| `registry/bund_sources.csv` | National case tables 2013 to 2025, used only by the validation gate |
+| `tests/testthat/` | Regression tests, offline, on small fixtures |
+| `notes/` | Audit, bug register, design decisions, legacy comparison |
+
+## Running
+
+Tested with R 4.6.0. Requires `targets`, `readxl`, `pdftools`, `arrow`, `readr`, `dplyr`, `tibble`, `cli`, `httr2`, `digest`, `jsonlite`, `testthat` and `withr`. Run from the repository root in a UTF-8 locale.
+
+```r
+# Raw files are not committed. Download them from the URLs in the registries
+# (see R/download.R) and check them against the recorded SHA-256:
+#   data-raw/                      PKS Kreis tables (registry/sources.csv)
+#   data-raw/bbsr/ref-kreise-1990-2024.xlsx   BBSR crosswalk
+#   data-raw/bund/                 Bund tables (registry/bund_sources.csv)
+#   data-raw/destatis/             Destatis change lists (registry/destatis_sources.csv)
+targets::tar_make()
+testthat::test_dir("tests/testthat")
+```
+
+Output:
+
+- `output/canonical/pks_kreis_<year>.parquet`: one file per year 2003 to 2025, as published.
+- `output/harmonized/<weights>/pks_kreis_panel.parquet` and `pks_kreis_<year>.csv.gz`: harmonized panel for population and area weights.
+- `output/validation/report_<weights>.json`: result of the validation gate.
+
+## Sources and attribution
+
+- Bundeskriminalamt (BKA), Polizeiliche Kriminalstatistik, district tables (Kreise) and national tables (Bund), <https://www.bka.de>.
+- Bundesinstitut für Bau-, Stadt- und Raumforschung (BBSR), Umsteigeschlüssel für Kreise (`ref-kreise`).
+- Statistisches Bundesamt (Destatis), Gemeindeverzeichnis, yearly lists of changes to municipal names and boundaries (URLs in `registry/destatis_sources.csv`).
+
+The terms of reuse of the source data are being confirmed before the first public data release.
+
+## Author
+
+Ömer Furkan Çoban
