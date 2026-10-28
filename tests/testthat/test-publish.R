@@ -17,7 +17,8 @@ test_that("release assets carry the weighting in their names and the notes in th
   r <- release_fixture()
   expect_setequal(basename(r$assets), c(
     "pks_kreis_published.parquet", "pks_kreis_panel_population.parquet", "pks_kreis_2019_population.csv.gz",
-    "validation_population.json", "sources.csv", "boundary_map.csv", "offence_map.csv", "known_breaks.csv"
+    "validation_population.json", "sources.csv", "bund_sources.csv", "destatis_sources.csv",
+    "reference_sources.csv", "boundary_map.csv", "offence_map.csv", "known_breaks.csv", "ATTRIBUTION.txt"
   ))
   meta <- arrow::read_parquet(file.path(r$dir, "pks_kreis_published.parquet"), as_data_frame = FALSE)$metadata$pksR_notes
   expect_identical(jsonlite::fromJSON(meta), as.list(published_notes))
@@ -78,4 +79,21 @@ test_that("an existing tag is never overwritten", {
 test_that("no release when the branch moved during the run", {
   expect_true(assert_branch_unchanged("o/r", "main", "abc", head = "abc"))
   expect_error(assert_branch_unchanged("o/r", "main", "abc1234", head = "def5678"), "moved during the run")
+})
+
+test_that("every release names all sources, their licences and the changes made", {
+  r <- release_fixture()
+  m <- build_manifest(r$dir, "2026.1", "abc")
+  expect_identical(m$license, "dl-de/by-2-0")
+  expect_identical(m$license_url, "https://www.govdata.de/dl-de/by-2-0")
+  notes <- vapply(m$attribution, `[[`, "", "source_note")
+  expect_match(notes[1], sprintf("^PKS Bundeskriminalamt, reporting years %d to %d", min(m$years), max(m$years)))
+  expect_match(notes[2], "^BBSR Bonn [0-9]{4}$")
+  expect_match(notes[3], "^Statistisches Bundesamt \\(Destatis\\)")
+  expect_match(m$license_note, "not official figures", fixed = TRUE)
+  # Every registry an attribution points to ships with the release
+  expect_true(all(file.exists(file.path(r$dir, unlist(lapply(m$attribution, `[[`, "registry"))))))
+  txt <- readLines(file.path(r$dir, "ATTRIBUTION.txt"), encoding = "UTF-8")
+  expect_true(any(grepl("BBSR Bonn", txt)) && any(grepl("dl-de/by-2-0", txt)))
+  expect_true(any(grepl("Changes made by", paste(txt, collapse = " "))))
 })

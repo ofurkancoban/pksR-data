@@ -32,7 +32,7 @@ if (mode == "publish" && !data_changed(manifest, latest_manifest(repo))) {
     "Pipeline commit: ", commit, "\n",
     "Years: ", paste(manifest$years, collapse = " to "), ", target boundary: ", manifest$target_boundary_year, "\n",
     "Validation: ", paste(names(manifest$validation), unlist(manifest$validation), sep = " ", collapse = ", "), "\n\n",
-    "Source: Bundeskriminalamt, Polizeiliche Kriminalstatistik. See README for attribution."
+    manifest$license_note
   )
   publish_release(dir, repo, tag, body, draft = mode == "test", prerelease = mode == "test", commit = commit)
   result$tag <- tag

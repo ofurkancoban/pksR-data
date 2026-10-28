@@ -125,7 +125,12 @@ list(
   # Release assets (uploaded by ci/release.R, never by tar_make())
   tar_target(
     release_assets,
-    build_release_assets(canonical_file, panel_file, "registry", "output/release"),
+    {
+      # The source registries are copied into the release and feed its
+      # attribution, so a change in them rebuilds the assets
+      c(bund_sources_file, destatis_sources_file, reference_sources_file)
+      build_release_assets(canonical_file, panel_file, "registry", "output/release")
+    },
     format = "file"
   )
 )

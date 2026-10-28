@@ -5,10 +5,99 @@
 #   pks_kreis_panel_<weights>.parquet    harmonized panel per weighting
 #   pks_kreis_<year>_<weights>.csv.gz    the same, one file per year
 #   validation_<weights>.json            validation gate report
-#   sources.csv, boundary_map.csv, offence_map.csv, known_breaks.csv
+#   sources.csv, bund_sources.csv, destatis_sources.csv,
+#   reference_sources.csv, boundary_map.csv, offence_map.csv,
+#   known_breaks.csv                     registries of this release
+#   ATTRIBUTION.txt                      source notes and licences
 #   manifest.json                        written last, describes all others
 # Weightings get a suffix because asset names must be unique in a release.
 # Published releases are never changed: a correction is a new version.
+
+# Terms of the source data (notes/decisions.md, 2026-10-28):
+#   BKA       PKS pages: Datenlizenz Deutschland, Namensnennung, Version 2.0;
+#             source "PKS Bundeskriminalamt", reporting year, version
+#   BBSR      Nutzungshinweise: the same licence; source "BBSR Bonn [Jahr]",
+#             a link to www.bbsr.bund.de, and the kind and author of changes
+#   Destatis  Impressum: copying and distribution with a source note
+# The licence requires a note that the data were changed, so every release
+# says what pksR-data changed and who made the changes.
+data_license <- list(id = "dl-de/by-2-0", url = "https://www.govdata.de/dl-de/by-2-0")
+
+pipeline_author <- "\u00d6mer Furkan \u00c7oban"
+pipeline_url <- "https://github.com/ofurkancoban/pksR-data"
+
+# One entry per source, built from the registries in `registry_dir` (the
+# release copies of them, so the note matches the files of the release).
+source_attributions <- function(registry_dir, years) {
+  read <- function(f) readr::read_csv(file.path(registry_dir, f), col_types = readr::cols(.default = "c"), na = "")
+  ref <- read("reference_sources.csv")
+  des <- read("destatis_sources.csv")
+  bbsr_year <- substr(ref$retrieved_at[ref$label == "bbsr_ref_kreise"], 1, 4)
+  des_years <- range(as.integer(substr(des$label, 1, 4)))
+  if (length(bbsr_year) != 1 || is.na(bbsr_year) || anyNA(des_years)) {
+    cli::cli_abort("The registries in {.file {registry_dir}} lack the dates for the source notes.")
+  }
+  list(
+    list(
+      provider = "Bundeskriminalamt (BKA)",
+      dataset = "Polizeiliche Kriminalstatistik (PKS), case tables for Kreise and for the Bund",
+      license = data_license$id, license_url = data_license$url,
+      source_note = sprintf("PKS Bundeskriminalamt, reporting years %d to %d, table versions as published at the URLs in sources.csv and bund_sources.csv", min(years), max(years)),
+      registry = c("sources.csv", "bund_sources.csv")
+    ),
+    list(
+      provider = "Bundesinstitut f\u00fcr Bau-, Stadt- und Raumforschung (BBSR), https://www.bbsr.bund.de",
+      dataset = "Umsteigeschl\u00fcssel f\u00fcr Kreise (ref-kreise)",
+      license = data_license$id, license_url = data_license$url,
+      source_note = paste("BBSR Bonn", bbsr_year),
+      registry = "reference_sources.csv"
+    ),
+    list(
+      provider = "Statistisches Bundesamt (Destatis)",
+      dataset = "Gemeindeverzeichnis, Namens- und Gebiets\u00e4nderungen",
+      license = "Copying and distribution with a source note (Destatis Impressum)",
+      license_url = "https://www.destatis.de/DE/Service/Impressum/_inhalt.html",
+      source_note = sprintf("Statistisches Bundesamt (Destatis), Gemeindeverzeichnis, %d to %d", des_years[1], des_years[2]),
+      registry = "destatis_sources.csv"
+    )
+  )
+}
+
+changes_note <- function() {
+  paste0(
+    "Changes: case counts extracted from the published BKA tables, district codes normalized, ",
+    "counts harmonized to one boundary year (target_boundary_year in manifest.json) with BBSR weights ",
+    "and documented corrections (boundary_map.csv), offence keys mapped (offence_map.csv), rates and ",
+    "derived population recomputed. Changes made by ", pipeline_author, " with pksR-data (", pipeline_url, "). ",
+    "These are not official figures of the BKA, the BBSR or Destatis."
+  )
+}
+
+attribution_note <- function(attributions) {
+  notes <- vapply(attributions, function(a) {
+    sprintf("%s. Licence: %s (%s).", a$source_note, a$license, a$license_url)
+  }, "")
+  paste(c(paste("Sources:", paste(notes, collapse = " ")), changes_note()), collapse = " ")
+}
+
+# ATTRIBUTION.txt: the source notes for users of the CSV files, who may
+# never read manifest.json.
+write_attribution <- function(attributions, path) {
+  block <- function(a) {
+    c(a$provider,
+      sprintf("  Dataset:     %s", a$dataset),
+      sprintf("  Source note: %s", a$source_note),
+      sprintf("  Licence:     %s <%s>", a$license, a$license_url),
+      sprintf("  Source URLs: %s", paste(a$registry, collapse = ", ")), "")
+  }
+  lines <- c(
+    "Attribution for this pksR-data release", "",
+    unlist(lapply(attributions, block)),
+    strwrap(changes_note(), width = 72)
+  )
+  writeLines(enc2utf8(lines), path, useBytes = TRUE)
+  path
+}
 
 # Notes stored in the Parquet metadata (key "pksR_notes") and in the
 # manifest; pksR::pks_get() prints them when it loads the data.
@@ -26,7 +115,10 @@ write_parquet_with_notes <- function(data, path, notes) {
   path
 }
 
-release_registry_files <- c("sources.csv", "boundary_map.csv", "offence_map.csv", "known_breaks.csv")
+release_registry_files <- c(
+  "sources.csv", "bund_sources.csv", "destatis_sources.csv", "reference_sources.csv",
+  "boundary_map.csv", "offence_map.csv", "known_breaks.csv"
+)
 
 # `panel_files` is the output of the panel_file target: per weighting the
 # panel Parquet file, one CSV.gz per year and the validation report.
@@ -60,7 +152,8 @@ build_release_assets <- function(canonical_files, panel_files, registry_dir, dir
     file.copy(file.path(registry_dir, f), dest)
     out <- c(out, dest)
   }
-  out
+  attributions <- source_attributions(dir, range(published$year))
+  c(out, write_attribution(attributions, file.path(dir, "ATTRIBUTION.txt")))
 }
 
 # "2026.1", "2026.2", ... from the existing release tags "v2026.1", ...
@@ -97,6 +190,7 @@ build_manifest <- function(dir, data_version, pipeline_commit, created_at = Sys.
   }
   targets_year <- unique(vapply(reports, function(r) as.integer(r$target_boundary_year), 1L))
   years <- range(unlist(lapply(reports, function(r) unlist(r$years))))
+  attributions <- source_attributions(dir, years)
   panels <- grep("^pks_kreis_(panel_.+|published)\\.parquet$", files, value = TRUE)
   list(
     data_version = data_version,
@@ -112,7 +206,10 @@ build_manifest <- function(dir, data_version, pipeline_commit, created_at = Sys.
     validation = as.list(status),
     notes = list(published = as.list(published_notes), harmonized = as.list(panel_notes)),
     sources = "registry/sources.csv at pipeline_commit",
-    license_note = "Source: Bundeskriminalamt, Polizeiliche Kriminalstatistik. See README for attribution.",
+    license = data_license$id,
+    license_url = data_license$url,
+    attribution = attributions,
+    license_note = attribution_note(attributions),
     zenodo_doi = NULL
   )
 }
