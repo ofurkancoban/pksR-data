@@ -7,6 +7,11 @@ name: diagnose
 
 on:
   workflow_dispatch:
+    inputs:
+      only_worker:
+        description: "Run only the probes through the Cloudflare Worker"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -19,6 +24,7 @@ jobs:
       UA: "pksR-data (R pipeline for German Police Crime Statistics; https://github.com/ofurkancoban/pksR-data)"
     steps:
       - name: Runner network
+        if: ${{ !inputs.only_worker }}
         continue-on-error: true
         run: |
           echo "Public IP and network of this runner:"
@@ -28,6 +34,7 @@ jobs:
           getent ahosts www.bka.de || echo "DNS lookup failed"
 
       - name: Timed requests
+        if: ${{ !inputs.only_worker }}
         continue-on-error: true
         run: |
           # Actions runs bash with -e; a failed curl must not end the probes
@@ -84,9 +91,12 @@ jobs:
           probe() {
             name="$1"; url="$2"; extra="$3"
             for i in 1 2 3 4 5; do
-              out=$(curl -sS -o /dev/null -A "$UA" -H "X-Proxy-Key: $PROXY_KEY" --connect-timeout 30 --max-time 60 $extra -w "$fmt" "$PROXY_URL/?url=$(enc "$url")" 2>curl.err); code=$?
+              out=$(curl -sS -o body.bin -A "$UA" -H "X-Proxy-Key: $PROXY_KEY" --connect-timeout 30 --max-time 60 $extra -w "$fmt" "$PROXY_URL/?url=$(enc "$url")" 2>curl.err); code=$?
               cat curl.err
               echo "$name $i: $out$code"
+              # "Forbidden." is the Worker's own refusal (key mismatch);
+              # anything else came from bka.de
+              echo "body start: $(head -c 300 body.bin | tr -d '\r' | tr '\n' ' ')"
               http=$(echo "$out" | cut -d'|' -f1)
               timings=$(echo "$out" | cut -d'|' -f2-6 | sed 's/|/,/g')
               echo "| $name | $i | $http | $timings | $code |" >> "$GITHUB_STEP_SUMMARY"
@@ -102,6 +112,7 @@ jobs:
   # and one without target_commitish, prints GitHub's answer and deletes
   # whatever was created.
   release-api:
+    if: ${{ !inputs.only_worker }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -136,6 +147,7 @@ jobs:
   # The same probe through the pipeline's own R client (R/github.R), to tell
   # a token problem from a problem in how the client sends the request.
   release-api-r:
+    if: ${{ !inputs.only_worker }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
