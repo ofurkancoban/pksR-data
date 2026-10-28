@@ -208,3 +208,44 @@ jobs:
           RSCRIPT
           Rscript probe.R
           if [ -f probe_id.txt ]; then gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$(cat probe_id.txt)" && echo "deleted probe"; fi
+
+  # The pipeline's own download path (download_file() in R/download.R)
+  # through the Worker, for the nine files that came back with other hashes
+  # in run 40740995930 while curl through the same Worker got them right.
+  fetch-r:
+    if: ${{ inputs.only_worker }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PKSR_PROXY_URL: ${{ secrets.BKA_PROXY_URL }}
+      PKSR_PROXY_KEY: ${{ secrets.BKA_PROXY_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+      - uses: r-lib/actions/setup-r-dependencies@v2
+      - name: Download through the Worker from R
+        continue-on-error: true
+        run: |
+          cat > probe.R <<'RSCRIPT'
+          for (f in c("R/utils.R", "R/download.R", "R/mirror.R")) source(f)
+          inv <- raw_inventory()
+          pick <- (inv$registry == "sources" & inv$label %in% c("2003", "2005", "2011", "2015", "2016")) |
+            (inv$registry == "bund_sources" & inv$label %in% c("2022", "2023", "2024", "2025"))
+          for (i in which(pick)) {
+            tmp <- tempfile()
+            res <- tryCatch({
+              resp <- httr2::req_perform(pksr_request(inv$url[i]), path = tmp)
+              sprintf("http %s, content-type %s, content-encoding %s, content-length %s",
+                      httr2::resp_status(resp), httr2::resp_header(resp, "content-type") %||% "-",
+                      httr2::resp_header(resp, "content-encoding") %||% "-", httr2::resp_header(resp, "content-length") %||% "-")
+            }, error = function(e) paste("error:", conditionMessage(e)))
+            sha <- if (file.exists(tmp)) sha256_file(tmp) else NA
+            first <- if (file.exists(tmp)) gsub("[^[:print:]]", ".", rawToChar(readBin(tmp, "raw", 60)[readBin(tmp, "raw", 60) != as.raw(0)])) else ""
+            cat(sprintf("%s %s | %s | size %s | %s | first: %s\n", inv$registry[i], inv$label[i], res,
+                        if (file.exists(tmp)) file.size(tmp) else NA,
+                        if (identical(sha, inv$sha256[i])) "HASH OK" else paste("HASH DIFFERS", substr(sha, 1, 10)), first))
+          }
+          RSCRIPT
+          Rscript probe.R
