@@ -1,0 +1,114 @@
+# Scheduled data pipeline (brief Section 9.1): fetch and verify raw files,
+# look for new years, test, build, validate, and release.
+#
+# Releases:
+#   scheduled run      public release "v<version>" when the data changed,
+#                      only if the repository variable PUBLISH_ENABLED is
+#                      "true" (set it once the BKA terms of reuse are
+#                      confirmed); otherwise the run only checks
+#   manual, test       draft prerelease "test-<version>-run<n>"
+#   manual, publish    as a scheduled run
+# Any failure or finding opens an issue; nothing is published then.
+name: pipeline
+
+on:
+  schedule:
+    - cron: "17 5 1 * *"      # monthly, 1st day, 05:17 UTC
+    - cron: "17 5 * 3-5 1"    # weekly on Mondays from March to May (PKS release season)
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Release to create"
+        type: choice
+        options: [none, test, publish]
+        default: none
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: pipeline
+  cancel-in-progress: false
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      RELEASE_MODE: ${{ github.event_name == 'schedule' && 'publish' || inputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          dependencies: '"all"'
+
+      - name: Fetch and verify raw files
+        run: Rscript ci/fetch.R
+
+      - name: Discover new years and republished files
+        id: discover
+        run: Rscript ci/discover.R
+
+      - name: Tests
+        run: Rscript -e 'testthat::test_dir("tests/testthat", stop_on_failure = TRUE)'
+
+      - name: Build and validate
+        run: Rscript -e 'targets::tar_make()'
+
+      - name: Release (dry run)
+        if: env.RELEASE_MODE == 'test'
+        run: Rscript ci/release.R test
+
+      - name: Release
+        if: env.RELEASE_MODE == 'publish' && vars.PUBLISH_ENABLED == 'true'
+        run: Rscript ci/release.R publish
+
+      - name: Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-reports
+          path: |
+            output/ci/
+            output/validation/
+            output/release/manifest.json
+          if-no-files-found: ignore
+
+      - name: Issue on failure
+        if: failure()
+        run: |
+          Rscript ci/issue_body.R failure > issue.md
+          title="Pipeline failed ($(date -u +%Y-%m-%d))"
+          gh issue create --title "$title" --body-file issue.md
+
+      - name: Issue on findings
+        if: success() && steps.discover.outputs.found == 'true'
+        run: |
+          title="New or republished PKS files found"
+          if [ -z "$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[].number')" ]; then
+            Rscript ci/issue_body.R discovery > issue.md
+            gh issue create --title "$title" --body-file issue.md
+          fi
+
+      - name: Commit status file
+        if: always() && github.event_name == 'schedule'
+        env:
+          PKSR_OUTCOME: ${{ job.status }}
+        run: |
+          Rscript ci/status.R
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add status/last_check.json
+          git commit -m "chore(pipeline): update status of scheduled run" || exit 0
+          git pull --rebase
+          git push

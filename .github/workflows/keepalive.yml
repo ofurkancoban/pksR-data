@@ -1,0 +1,40 @@
+# GitHub disables scheduled workflows in public repositories after 60 days
+# without activity (brief Section 9.3). The pipeline commits
+# status/last_check.json on every scheduled run; this weekly job is the
+# safety net: it re-enables the pipeline workflow and commits a heartbeat
+# when the last commit is older than 50 days.
+name: keepalive
+
+on:
+  schedule:
+    - cron: "41 6 * * 0"   # Sundays, 06:41 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Re-enable the pipeline workflow
+        run: gh workflow enable pipeline.yml
+
+      - name: Heartbeat commit when the repository is idle
+        run: |
+          last=$(git log -1 --format=%ct)
+          now=$(date -u +%s)
+          if [ $(( (now - last) / 86400 )) -ge 50 ]; then
+            mkdir -p status
+            printf '{\n  "heartbeat_at": "%s"\n}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > status/keepalive.json
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add status/keepalive.json
+            git commit -m "chore(pipeline): keep scheduled workflows enabled"
+            git push
+          fi
