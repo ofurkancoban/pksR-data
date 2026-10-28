@@ -50,3 +50,8 @@ test_that("connection failures are retried, not only transient HTTP statuses", {
   expect_equal(req$policies$retry_max_tries, 5)
   expect_equal(req$options$connecttimeout, 60)
 })
+
+test_that("requests to one host are at least ten seconds apart", {
+  # httr2 keeps the throttle outside the request object, so check the code
+  expect_match(paste(deparse(body(pksr_request)), collapse = " "), "capacity = 1, fill_time_s = 10)", fixed = TRUE)
+})

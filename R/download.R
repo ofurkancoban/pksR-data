@@ -1,5 +1,5 @@
 # Polite downloads of registry sources (BUG-025): URLs only from the
-# registries, a descriptive User-Agent, retries, one request per two seconds
+# registries, a descriptive User-Agent, retries, one request per ten seconds
 # per host, and a SHA-256 check against the registry.
 
 pksr_user_agent <- "pksR-data (R pipeline for German Police Crime Statistics; https://github.com/ofurkancoban/pksR-data)"
@@ -32,7 +32,9 @@ pksr_request <- function(url) {
     # req_timeout() resets connecttimeout, so it comes first
     httr2::req_timeout(600) |>
     httr2::req_options(connecttimeout = 60) |>
-    httr2::req_throttle(capacity = 1, fill_time_s = 2)
+    # Ten seconds between requests to one host: at two seconds, bka.de
+    # dropped connections from GitHub runners (runs 40672047901, 40695396376)
+    httr2::req_throttle(capacity = 1, fill_time_s = 10)
 }
 
 # Every raw file the pipeline reads, from the four registries, with the
