@@ -30,6 +30,8 @@ jobs:
       - name: Timed requests
         continue-on-error: true
         run: |
+          # Actions runs bash with -e; a failed curl must not end the probes
+          set +e
           page="https://www.bka.de/DE/AktuelleInformationen/StatistikenLagebilder/PolizeilicheKriminalstatistik/pks_node.html"
           pdf="https://www.bka.de/SharedDocs/Downloads/DE/Publikationen/PolizeilicheKriminalstatistik/pksJahrbuecherBis2011/pks2003.pdf?__blob=publicationFile&v=2"
           control="https://www.destatis.de/DE/Themen/Laender-Regionen/Regionales/Gemeindeverzeichnis/Namens-Grenz-Aenderung/2003.html"
