@@ -207,26 +207,26 @@ Checked on bka.de, bbsr.bund.de, destatis.de and govdata.de (brief Section 10.6)
 | `------` | Total offences | `total` | `insgesamt` |
 | `890000` | Total offences excluding offences against the Residence, Asy | `total_excl_immigration` | `insgesamt_ohne_auslaenderrecht` |
 | `****00` | Theft, total | `theft` | `diebstahl` |
-| `***100` | Theft of motor cars, total, incl. unauthorized use | `car_theft` | `kfz_diebstahl` |
+| `***100` | Theft of motor cars, total, incl. unauthorized use | `car_theft` | `kraftwagendiebstahl` |
 | `***200` | Theft of mopeds and motorcycles, total, incl. unauthorized u | `motorcycle_theft` | `kraftrad_diebstahl` |
 | `***300` | Theft of bicycles, total, incl. unauthorized use | `bicycle_theft` | `fahrraddiebstahl` |
 | `*26*00` | Shoplifting, total | `shoplifting` | `ladendiebstahl` |
-| `*50*00` | Theft of parts from and items out of motor vehicles, total | `theft_from_vehicles` | `diebstahl_aus_kfz` |
+| `*50*00` | Theft of parts from and items out of motor vehicles, total | `theft_from_vehicles` | `diebstahl_an_aus_kfz` |
 | `*90*00` | Pickpocketing, total | `pickpocketing` | `taschendiebstahl` |
 | `3***00` | Theft without aggravating circumstances | `simple_theft` | `einfacher_diebstahl` |
 | `326*00` | Simple shoplifting | `simple_shoplifting` | `einfacher_ladendiebstahl` |
 | `4***00` | Theft under aggravating circumstances | `aggravated_theft` | `schwerer_diebstahl` |
-| `435*00` | Residential burglary | `burglary` | `wohnungseinbruch` |
-| `436*00` | Daytime residential burglary | `daytime_burglary` | `tageswohnungseinbruch` |
-| `111000` | Rape, sexual coercion and sexual assault in especially serio | `rape_sexual_assault` | `vergewaltigung` |
+| `435*00` | Residential burglary | `residential_burglary` | `wohnungseinbruch` |
+| `436*00` | Daytime residential burglary | `daytime_residential_burglary` | `tageswohnungseinbruch` |
+| `111000` | Rape, sexual coercion and sexual assault in especially serio | `rape_sexual_coercion` | `vergewaltigung_sexuelle_noetigung` |
 | `210000` | Robbery, extortion by force or threat and assault on motoris | `robbery` | `raub` |
-| `211000` | Robbery and extortion by force or threat against banks, post | `bank_robbery` | `raub_geldinstitute` |
+| `211000` | Robbery and extortion by force or threat against banks, post | `bank_post_office_robbery` | `raub_geldinstitute_post` |
 | `212000` | Robbery and extortion by force or threat against other cash  | `shop_robbery` | `raub_kassenraeume` |
 | `216000` | Handbag robbery | `handbag_robbery` | `handtaschenraub` |
-| `217000` | Other robbery in streets, paths or squares | `street_robbery` | `strassenraub` |
+| `217000` | Other robbery in streets, paths or squares | `other_street_robbery` | `sonstiger_strassenraub` |
 | `219000` | Robbery in dwellings | `home_robbery` | `raub_wohnungen` |
 | `220000` | Bodily harm | `bodily_harm` | `koerperverletzung` |
-| `222000` | Dangerous and serious bodily harm, female genital mutilation | `serious_bodily_harm` | `gefaehrliche_koerperverletzung` |
+| `222000` | Dangerous and serious bodily harm, female genital mutilation | `dangerous_serious_bodily_harm` | `gefaehrliche_schwere_koerperverletzung` |
 | `224000` | Intentional simple bodily harm | `simple_bodily_harm` | `einfache_koerperverletzung` |
 | `510000` | Fraud | `fraud` | `betrug` |
 | `515000` | Obtaining services by deception | `obtaining_services_by_deception` | `erschleichen_von_leistungen` |
@@ -259,3 +259,5 @@ Checked on bka.de, bbsr.bund.de, destatis.de and govdata.de (brief Section 10.6)
 2. Short names changed (still `status = "draft"`): `630000` from `obstruction_of_justice` / `strafvereitelung` to `accessory_obstruction_handling_laundering` / `beguenstigung_strafvereitelung_hehlerei_geldwaesche` (the key covers four offences, not one); `621110` German name from `widerstand_gleichstehende_personen` to `widerstand_vollstreckungsbeamte_gleichstehende` (the officers were missing); `892500` from `homicide` / `toetungsdelikte` to `murder_manslaughter` / `mord_totschlag` (Toetungsdelikte usually also covers killings outside this key, such as negligent killing).
 3. English labels changed: "robbery-like extortion" and "robbery-like assault on motorists" (keys `210000`, `211000`, `212000`) become "extortion by force or threat" and "assault on motorists with intent to rob" (sections 255 and 316a StGB); for `630000`, "obstruction of justice (excluding in office)" becomes "obstruction of prosecution or punishment (excluding by public officials)" (section 258 StGB, without 258a).
 4. Checked for all 46 keys: no short name or label (normalized) belongs to more than one key, and every short name resolves to exactly its own key in `pksR::pks_get(offence = ...)`.
+5. Second review, same principle, eight more short names changed (still draft): `435*00` `residential_burglary` and `436*00` `daytime_residential_burglary` (English burglary also covers commercial premises); `217000` `other_street_robbery` / `sonstiger_strassenraub` (handbag robbery 216000 is excluded); `222000` `dangerous_serious_bodily_harm` / `gefaehrliche_schwere_koerperverletzung` (the label names both); `111000` `rape_sexual_coercion` / `vergewaltigung_sexuelle_noetigung` (only especially serious cases, not all sexual assault); `***100` German `kraftwagendiebstahl` (Kfz includes motorcycles, which are ***200); `*50*00` German `diebstahl_an_aus_kfz` (parts from vehicles since 2012); `211000` `bank_post_office_robbery` / `raub_geldinstitute_post`.
+6. Also checked in the second review: every child key is at most its parent in every district-year, valid_from and valid_to equal the years in the data, and every label_de equals the last published label apart from the removed trailing "und zwar:" or "davon:" and one double space.
