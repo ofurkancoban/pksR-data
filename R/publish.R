@@ -119,7 +119,8 @@ build_manifest <- function(dir, data_version, pipeline_commit, created_at = Sys.
 
 write_manifest <- function(manifest, dir) {
   path <- file.path(dir, "manifest.json")
-  jsonlite::write_json(manifest, path, auto_unbox = TRUE, pretty = TRUE, null = "null", digits = NA)
+  # na = "null": files without rows (JSON reports) must not get the string "NA"
+  jsonlite::write_json(manifest, path, auto_unbox = TRUE, pretty = TRUE, null = "null", na = "null", digits = NA)
   path
 }
 

@@ -37,6 +37,9 @@ test_that("the manifest describes every asset with hash, size and rows", {
   path <- write_manifest(m, r$dir)
   back <- jsonlite::read_json(path)
   expect_null(back$zenodo_doi)
+  # A file without rows gets null, not the string "NA" (dry run test-2026.1-run7)
+  report <- back$files[[which(vapply(back$files, `[[`, "", "name") == "validation_population.json")]]
+  expect_null(report$rows)
   expect_false(data_changed(back, m))
 })
 
