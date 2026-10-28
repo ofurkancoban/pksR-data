@@ -152,3 +152,12 @@ Rationale and evidence:
 3. The mirror stays because the Worker path is not perfect (525) and because a file that BKA removes or moves could otherwise no longer be rebuilt. A mirror copy is never used to hide a changed source file: a different hash from the source stops the run.
 4. Cloudflare's 520 to 526, 500, 502, 504 and 429 are now retried like connection failures (httr2 retries only 429 and 503 by default).
 5. The Worker does not hide who is asking: it forwards only GET requests to www.bka.de, keeps the pipeline's User-Agent, and Cloudflare marks its requests with a CF-Worker header.
+
+## 2026-10-28: Cut-off transfers are not drift
+
+Finding: run 40740995930 reported 9 raw files as changed. Downloaded directly from the maintainer's connection, all 9 still have the registered hash, and curl through the Worker got whole correct files. The pipeline's own downloads through the Worker (diagnose run 40746772308) showed the cause: bka.de sometimes drops the connection mid-transfer, and the Worker streamed the answer without a length, so the client saw HTTP 200 and a complete-looking but truncated file (PKS 2011: 71,426 of 6,420,557 bytes; Bund 2022: 19,567 of 165,613; Bund 2025: 71,383 of 210,712).
+
+Decisions:
+
+1. A source file counts as changed only when two downloads agree on the same new hash; up to three downloads are made. Hashes that never agree count as an unreachable source, so the mirror copy is used and the run goes on.
+2. The Worker reads the whole upstream body before answering, compares it with the declared length, answers HTTP 502 (retried) for an incomplete transfer and always sends the real Content-Length. This needs the new `ci/proxy/worker.js` deployed in Cloudflare.
