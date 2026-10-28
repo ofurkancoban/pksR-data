@@ -10,8 +10,10 @@
 # the latest reporting year, PKS2025/pks2025_node.html).
 bka_pks_index_url <- "https://www.bka.de/DE/AktuelleInformationen/StatistikenLagebilder/PolizeilicheKriminalstatistik/pks_node.html"
 
+# Pages get two minutes including retries; a missed check is reported, not
+# fatal.
 fetch_html <- function(url) {
-  resp <- httr2::req_perform(pksr_request(url))
+  resp <- httr2::req_perform(pksr_request(url, max_seconds = 120))
   xml2::read_html(httr2::resp_body_string(resp))
 }
 
@@ -72,22 +74,38 @@ discover_new_years <- function(registry_years, fetch = fetch_html, index_url = b
 
 # Registered files whose landing page no longer links them. A link to the
 # same file with another query (BKA: "&v=3" instead of "&v=2") means the
-# file was republished.
-check_landing_pages <- function(sources, fetch = fetch_html) {
-  s <- sources[!is.na(sources$landing_page), ]
-  rows <- lapply(seq_len(nrow(s)), function(i) {
-    links <- tryCatch(page_links(fetch(s$landing_page[i]), s$landing_page[i]), error = function(e) NULL)
-    if (is.null(links)) {
-      return(tibble::tibble(year = s$year[i], status = "landing page unreachable", url = s$url[i], linked = NA_character_))
+# file was republished. This replaces downloading every file each month to
+# compare hashes. `files` needs columns registry, label, url, landing_page
+# (raw_inventory()). After three unreachable pages in a row on one host the
+# remaining pages of that host are marked "not checked".
+check_landing_pages <- function(files, fetch = fetch_html, give_up_after = 3) {
+  f <- files[!is.na(files$landing_page), ]
+  host <- sub("^https?://([^/]+)/.*$", "\\1", f$landing_page)
+  misses <- stats::setNames(integer(0), character(0))
+  pages <- list()
+  rows <- lapply(seq_len(nrow(f)), function(i) {
+    row <- function(status, linked = NA_character_) {
+      tibble::tibble(registry = f$registry[i], label = f$label[i], status = status, url = f$url[i], linked = linked)
     }
-    if (s$url[i] %in% links) return(NULL)
-    same_file <- links[sub("\\?.*$", "", links) == sub("\\?.*$", "", s$url[i])]
-    tibble::tibble(
-      year = s$year[i],
-      status = if (length(same_file)) "republished" else "no longer linked",
-      url = s$url[i],
-      linked = if (length(same_file)) paste(same_file, collapse = " ") else NA_character_
-    )
+    h <- host[i]
+    if (isTRUE(misses[h] >= give_up_after)) return(row("not checked (host unreachable)"))
+    page <- f$landing_page[i]
+    if (is.null(pages[[page]])) {
+      pages[[page]] <<- tryCatch(page_links(fetch(page), page), error = function(e) NA_character_)
+    }
+    links <- pages[[page]]
+    if (identical(links, NA_character_)) {
+      misses[h] <<- (if (is.na(misses[h])) 0L else misses[h]) + 1L
+      return(row("landing page unreachable"))
+    }
+    misses[h] <<- 0L
+    if (f$url[i] %in% links) return(NULL)
+    same_file <- links[sub("\\?.*$", "", links) == sub("\\?.*$", "", f$url[i])]
+    row(if (length(same_file)) "republished" else "no longer linked",
+        if (length(same_file)) paste(same_file, collapse = " ") else NA_character_)
   })
-  dplyr::bind_rows(tibble::tibble(year = integer(0), status = character(0), url = character(0), linked = character(0)), rows)
+  dplyr::bind_rows(
+    tibble::tibble(registry = character(0), label = character(0), status = character(0), url = character(0), linked = character(0)),
+    rows
+  )
 }

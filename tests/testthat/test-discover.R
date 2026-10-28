@@ -22,10 +22,33 @@ test_that("nothing is reported when the registry covers every linked year", {
 
 test_that("a republished file (new ?v= on the landing page) is reported", {
   landing <- "https://www.bka.de/DE/AktuelleInformationen/StatistikenLagebilder/PolizeilicheKriminalstatistik/PKS2025/pksTabellen_Interpretationshilfen/KreisFalltabellen/kreisfalltabellen.html"
-  s <- tibble::tibble(year = 2025L, url = registered_2025, landing_page = landing)
+  s <- tibble::tibble(registry = "sources", label = "2025", url = registered_2025, landing_page = landing)
   expect_equal(nrow(check_landing_pages(s, fake_fetch)), 0)
   s$url <- sub("v=2$", "v=1", s$url)
   r <- check_landing_pages(s, fake_fetch)
   expect_equal(r$status, "republished")
   expect_identical(r$linked, registered_2025)
+})
+
+test_that("an unreachable host is given up after three pages, not retried for every file", {
+  calls <- 0
+  dead <- function(url) { calls <<- calls + 1; stop("timeout") }
+  files <- tibble::tibble(
+    registry = "bund_sources", label = as.character(2013:2020),
+    url = paste0("https://www.bka.de/file", 1:8, ".xlsx"),
+    landing_page = paste0("https://www.bka.de/page", 1:8, ".html")
+  )
+  r <- check_landing_pages(files, dead)
+  expect_equal(calls, 3)
+  expect_equal(sum(r$status == "landing page unreachable"), 3)
+  expect_equal(sum(r$status == "not checked (host unreachable)"), 5)
+})
+
+test_that("a landing page shared by several files is fetched once", {
+  calls <- 0
+  landing <- "https://www.bka.de/DE/AktuelleInformationen/StatistikenLagebilder/PolizeilicheKriminalstatistik/PKS2025/pksTabellen_Interpretationshilfen/KreisFalltabellen/kreisfalltabellen.html"
+  counting <- function(url) { calls <<- calls + 1; fake_fetch(url) }
+  files <- tibble::tibble(registry = "sources", label = c("a", "b"), url = registered_2025, landing_page = landing)
+  expect_equal(nrow(check_landing_pages(files, counting)), 0)
+  expect_equal(calls, 1)
 })

@@ -14,6 +14,7 @@ status <- list(
   outcome = Sys.getenv("PKSR_OUTCOME", "unknown"),
   raw_files = if (is.null(fetch)) NULL else as.list(table(vapply(fetch, `[[`, "", "status"))),
   discovery_findings = !is.null(read_ci("discover")) && (length(read_ci("discover")$new_years) > 0 || length(read_ci("discover")$landing_pages) > 0),
+  landing_pages_not_checked = length(read_ci("discover")$landing_pages_not_checked),
   release = read_ci("release")
 )
 invisible(ensure_dir("status"))

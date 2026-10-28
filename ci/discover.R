@@ -6,7 +6,10 @@ source("ci/common.R")
 
 sources <- read_sources("registry/sources.csv")
 new <- tryCatch(discover_new_years(sources$year), error = function(e) e)
-landing <- tryCatch(check_landing_pages(sources), error = function(e) e)
+landing <- tryCatch(check_landing_pages(raw_inventory()), error = function(e) e)
+# Unreachable pages are recorded in the status file; only real changes are
+# findings that open an issue.
+changes <- if (inherits(landing, "error")) NULL else landing[landing$status %in% c("republished", "no longer linked"), ]
 
 # For each candidate file: hash and a trial extraction with a draft row, so
 # the issue shows whether the known layout still applies.
@@ -35,9 +38,10 @@ result <- list(
   registry_years = range(sources$year),
   new_years = if (inherits(new, "error")) list(error = conditionMessage(new)) else
     lapply(seq_len(nrow(new)), function(i) trial(new$year[i], new$url[i], new$landing_page[i])),
-  landing_pages = if (inherits(landing, "error")) list(error = conditionMessage(landing)) else landing
+  landing_pages = if (inherits(landing, "error")) list(error = conditionMessage(landing)) else changes,
+  landing_pages_not_checked = if (inherits(landing, "error")) list() else landing[!landing$status %in% c("republished", "no longer linked"), ]
 )
 write_ci(result, "discover")
-found <- (!inherits(new, "error") && nrow(new) > 0) || (!inherits(landing, "error") && nrow(landing) > 0)
+found <- (!inherits(new, "error") && nrow(new) > 0) || (!inherits(landing, "error") && nrow(changes) > 0)
 set_output("found", tolower(as.character(found)))
 cli::cli_inform("Discovery: {if (found) 'findings reported' else 'nothing new'}.")
