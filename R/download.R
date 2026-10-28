@@ -105,10 +105,11 @@ raw_inventory <- function(registry_dir = "registry", raw_dir = "data-raw") {
 #   "present"     local copy with the registered hash
 #   "downloaded"  fetched from the source
 #   "mirrored"    source unreachable, taken from the mirror (message: why)
-#   "changed"     the source serves another file: kept in `drift_dir`, never
-#                 replaced by the mirror copy, so the maintainer decides
+#   "changed"     the source serves another file (two downloads agree on the
+#                 new hash): kept in `drift_dir`, never replaced by the
+#                 mirror copy, so the maintainer decides
 #   "failed"      neither source nor mirror
-fetch_raw <- function(inventory, refresh = FALSE, drift_dir = "data-raw/_drift", get = download_file, mirror = NULL) {
+fetch_raw <- function(inventory, refresh = FALSE, drift_dir = "data-raw/_drift", get = download_file, mirror = NULL, tries = 3) {
   status <- character(nrow(inventory))
   actual <- rep(NA_character_, nrow(inventory))
   message <- rep(NA_character_, nrow(inventory))
@@ -124,22 +125,24 @@ fetch_raw <- function(inventory, refresh = FALSE, drift_dir = "data-raw/_drift",
       next
     }
     tmp <- tempfile()
-    res <- tryCatch(get(inventory$url[i], tmp), error = function(e) e)
-    if (!inherits(res, "error")) {
-      actual[i] <- sha256_file(tmp)
-      if (identical(actual[i], inventory$sha256[i])) {
-        put(tmp, path)
-        status[i] <- "downloaded"
-      } else {
-        keep <- file.path(ensure_dir(drift_dir), basename(path))
-        file.copy(tmp, keep, overwrite = TRUE)
-        status[i] <- "changed"
-        message[i] <- paste("new file kept in", keep)
-      }
+    src <- fetch_source(inventory$url[i], inventory$sha256[i], tmp, get, tries)
+    if (src$status == "downloaded") {
+      put(tmp, path)
+      status[i] <- "downloaded"
+      actual[i] <- inventory$sha256[i]
       unlink(tmp)
       next
     }
-    source_error <- conditionMessage(res)
+    if (src$status == "changed") {
+      keep <- file.path(ensure_dir(drift_dir), basename(path))
+      file.copy(tmp, keep, overwrite = TRUE)
+      status[i] <- "changed"
+      actual[i] <- src$sha256
+      message[i] <- paste("new file kept in", keep, "(the same new hash in two downloads)")
+      unlink(tmp)
+      next
+    }
+    source_error <- src$message
     got <- !is.null(mirror) && isTRUE(tryCatch(mirror(inventory$mirror_name[i], tmp), error = function(e) FALSE))
     # A mirror copy with another hash is not used
     if (got && identical(sha256_file(tmp), inventory$sha256[i])) {
@@ -158,6 +161,33 @@ fetch_raw <- function(inventory, refresh = FALSE, drift_dir = "data-raw/_drift",
   out$actual_sha256 <- actual
   out$message <- message
   out
+}
+
+# One file from its source. A hash other than the registered one is not
+# taken as a change at once: a transfer cut off mid-way also gives another
+# hash (truncated files with HTTP 200 through the Worker, diagnose run
+# 40746772308). Up to `tries` downloads:
+#   "downloaded"   one of them has the registered hash
+#   "changed"      two of them agree on the same other hash: the source file
+#                  really changed
+#   "unreachable"  errors or hashes that never agree (broken transfers)
+# The file at `dest` is the registered one or, for "changed", the new one.
+fetch_source <- function(url, sha256, dest, get = download_file, tries = 3) {
+  seen <- character(0)
+  last_error <- NA_character_
+  for (k in seq_len(tries)) {
+    res <- tryCatch(get(url, dest), error = function(e) e)
+    if (inherits(res, "error")) {
+      last_error <- conditionMessage(res)
+      next
+    }
+    h <- sha256_file(dest)
+    if (identical(h, sha256)) return(list(status = "downloaded", sha256 = h, message = NA_character_))
+    if (h %in% seen) return(list(status = "changed", sha256 = h, message = NA_character_))
+    seen <- c(seen, h)
+  }
+  why <- if (length(seen)) sprintf("%d download(s) with differing hashes (broken transfers?)", length(seen)) else last_error
+  list(status = "unreachable", sha256 = NA_character_, message = why)
 }
 
 # Downloads `url` to `path`; returns the ETag (or NA).

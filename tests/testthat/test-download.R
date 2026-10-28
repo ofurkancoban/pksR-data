@@ -114,3 +114,32 @@ test_that("mirror asset names keep the folder and are unique", {
 test_that("a request gives up after a bounded time, retries included", {
   expect_equal(pksr_request("https://example.invalid/a")$policies$retry_max_wait, 300)
 })
+
+test_that("a cut-off transfer is not taken for a changed source file", {
+  dir <- withr::local_tempdir()
+  src <- file.path(dir, "src.txt")
+  writeLines(strrep("registered ", 100), src)
+  inv <- tibble::tibble(registry = "bund_sources", label = "2022", url = "https://example.invalid/a",
+                        sha256 = sha256_file(src), path = file.path(dir, "raw", "a.txt"), mirror_name = "a.txt")
+  # Every download stops at another point (diagnose run 40746772308)
+  n <- 0
+  truncated <- function(url, path) {
+    n <<- n + 1
+    writeBin(readBin(src, "raw", 1000)[seq_len(10 * n)], path)
+  }
+  from_mirror <- function(name, dest) file.copy(src, dest, overwrite = TRUE)
+  res <- fetch_raw(inv, mirror = from_mirror, get = truncated, drift_dir = file.path(dir, "drift"))
+  expect_equal(res$status, "mirrored")
+  expect_match(res$message, "differing hashes")
+  expect_false(dir.exists(file.path(dir, "drift")))
+  # A broken first transfer followed by a complete one is fine
+  unlink(inv$path)
+  n <- 0
+  flaky <- function(url, path) {
+    n <<- n + 1
+    if (n == 1) writeLines("cut", path) else file.copy(src, path, overwrite = TRUE)
+  }
+  res <- fetch_raw(inv, get = flaky)
+  expect_equal(res$status, "downloaded")
+  expect_equal(n, 2)
+})
