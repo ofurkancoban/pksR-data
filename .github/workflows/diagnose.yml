@@ -1,0 +1,57 @@
+# Manual diagnosis of the connection failures to bka.de from GitHub runners
+# (notes/decisions.md, raw-file mirror). Shows the runner's public IP and
+# network, then times each connection phase (DNS, TCP, TLS, first byte) for
+# a few requests to bka.de, with destatis.de as a control. Touches no data
+# and never fails.
+name: diagnose
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      UA: "pksR-data (R pipeline for German Police Crime Statistics; https://github.com/ofurkancoban/pksR-data)"
+    steps:
+      - name: Runner network
+        continue-on-error: true
+        run: |
+          echo "Public IP and network of this runner:"
+          curl -s --max-time 20 https://ipinfo.io/json || echo "ipinfo.io not reachable"
+          echo
+          echo "DNS for www.bka.de:"
+          getent ahosts www.bka.de || echo "DNS lookup failed"
+
+      - name: Timed requests
+        continue-on-error: true
+        run: |
+          page="https://www.bka.de/DE/AktuelleInformationen/StatistikenLagebilder/PolizeilicheKriminalstatistik/pks_node.html"
+          pdf="https://www.bka.de/SharedDocs/Downloads/DE/Publikationen/PolizeilicheKriminalstatistik/pksJahrbuecherBis2011/pks2003.pdf?__blob=publicationFile&v=2"
+          control="https://www.destatis.de/DE/Themen/Laender-Regionen/Regionales/Gemeindeverzeichnis/Namens-Grenz-Aenderung/2003.html"
+          fmt='%{http_code} | %{remote_ip} | dns %{time_namelookup}s | tcp %{time_connect}s | tls %{time_appconnect}s | first byte %{time_starttransfer}s | total %{time_total}s | exit '
+          {
+            echo "| target | attempt | http | remote ip | timings | curl exit |"
+            echo "|---|---|---|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          probe() {
+            name="$1"; url="$2"; extra="$3"
+            for i in 1 2 3 4 5; do
+              echo "::group::$name attempt $i"
+              out=$(curl -v -sS -o /dev/null -A "$UA" --connect-timeout 30 --max-time 60 $extra -w "$fmt" "$url" 2>curl.err); code=$?
+              sed -n '1,40p' curl.err
+              echo "$out$code"
+              echo "::endgroup::"
+              http=$(echo "$out" | cut -d'|' -f1); ip=$(echo "$out" | cut -d'|' -f2)
+              timings=$(echo "$out" | cut -d'|' -f3-7 | sed 's/|/,/g')
+              echo "| $name | $i | $http | $ip | $timings | $code |" >> "$GITHUB_STEP_SUMMARY"
+              sleep 15
+            done
+          }
+          probe "bka.de page" "$page" ""
+          probe "bka.de pdf (first 1 KB)" "$pdf" "-r 0-1023"
+          probe "destatis.de page (control)" "$control" ""
