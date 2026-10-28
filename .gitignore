@@ -1,0 +1,8 @@
+.DS_Store
+.Rhistory
+.Rproj.user/
+.Renviron
+data-raw/
+output/
+_targets/
+notes/ai-usage.md
