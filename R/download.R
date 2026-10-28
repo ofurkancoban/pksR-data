@@ -21,10 +21,17 @@ verify_sha256 <- function(path, expected) {
   invisible(actual)
 }
 
+# Connection failures are retried too (httr2 retries only transient HTTP
+# statuses by default): from GitHub runners, the first requests to bka.de
+# timed out or were reset while later ones succeeded (run 40672047901).
+# Backoff 5, 10, 20, 40 s; 60 s to connect, 10 min per file.
 pksr_request <- function(url) {
   httr2::request(url) |>
     httr2::req_user_agent(pksr_user_agent) |>
-    httr2::req_retry(max_tries = 3) |>
+    httr2::req_retry(max_tries = 5, retry_on_failure = TRUE, backoff = function(i) 5 * 2^(i - 1)) |>
+    # req_timeout() resets connecttimeout, so it comes first
+    httr2::req_timeout(600) |>
+    httr2::req_options(connecttimeout = 60) |>
     httr2::req_throttle(capacity = 1, fill_time_s = 2)
 }
 

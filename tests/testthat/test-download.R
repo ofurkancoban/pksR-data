@@ -43,3 +43,10 @@ test_that("every registry row has a URL, a hash and its own raw file path", {
   expect_equal(sum(inv$registry == "reference_sources"), 1)
   expect_false(anyDuplicated(inv$path) > 0)
 })
+
+test_that("connection failures are retried, not only transient HTTP statuses", {
+  req <- pksr_request("https://example.invalid/a")
+  expect_true(req$policies$retry_on_failure)
+  expect_equal(req$policies$retry_max_tries, 5)
+  expect_equal(req$options$connecttimeout, 60)
+})
