@@ -106,6 +106,33 @@ jobs:
           probe "bka.de page" "$page" ""
           probe "bka.de pdf (first 1 KB)" "$pdf" "-r 0-1023"
 
+      # Whole files through the Worker: size, SHA-256, headers and first
+      # bytes, compared with the registered values. Run 40740995930 got
+      # other hashes through the Worker for 9 files that are unchanged at
+      # the source.
+      - name: Whole files through the Cloudflare Worker
+        continue-on-error: true
+        env:
+          PROXY_URL: ${{ secrets.BKA_PROXY_URL }}
+          PROXY_KEY: ${{ secrets.BKA_PROXY_KEY }}
+        run: |
+          set +e
+          if [ -z "$PROXY_URL" ] || [ -z "$PROXY_KEY" ]; then echo "secrets not set; skipped."; exit 0; fi
+          enc() { python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$1"; }
+          check() {
+            name="$1"; url="$2"; sha="$3"; size="$4"
+            curl -sS -D headers.txt -o file.bin -A "$UA" -H "X-Proxy-Key: $PROXY_KEY" --max-time 300 "$PROXY_URL/?url=$(enc "$url")"
+            echo "::group::$name"
+            cat headers.txt
+            echo "registered: size $size sha256 $sha"
+            echo "received:   size $(stat -c %s file.bin) sha256 $(sha256sum file.bin | cut -d' ' -f1)"
+            echo "first bytes: $(head -c 120 file.bin | tr -d '\r' | tr '\n' ' ' | tr -c '[:print:]' '.')"
+            echo "::endgroup::"
+            sleep 10
+          }
+          check "bund 2022" "https://www.bka.de/SharedDocs/Downloads/DE/Publikationen/PolizeilicheKriminalstatistik/2022/Bund/Faelle/BU-F-01-T01-Faelle_xls.xlsx?__blob=publicationFile&v=3" 9fd430554f7b72b4cd3973bf8b4dc0c5696e7160f346bc9ddb3e5d338d843e9d 165613
+          check "pks 2003" "https://www.bka.de/SharedDocs/Downloads/DE/Publikationen/PolizeilicheKriminalstatistik/pksJahrbuecherBis2011/pks2003.pdf?__blob=publicationFile&v=2" e5015b0ba1234bfd071de0d5a3e373979ce156ff0698e5247c40c684ce7f32e3 6239938
+
   # Why the pipeline's GITHUB_TOKEN may not create the dry-run release
   # (HTTP 403 "Resource not accessible by integration" in run 40728437461
   # with Contents: write). Creates two throwaway draft releases, one with
