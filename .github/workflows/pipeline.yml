@@ -55,8 +55,11 @@ jobs:
       - name: Fetch and verify raw files
         run: Rscript ci/fetch.R
 
+      # Informational: an unreachable bka.de must never block build or release
       - name: Discover new years and republished files
         id: discover
+        timeout-minutes: 20
+        continue-on-error: true
         run: Rscript ci/discover.R
 
       - name: Build and validate
