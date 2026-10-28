@@ -95,3 +95,33 @@ jobs:
           }
           probe "bka.de page" "$page" ""
           probe "bka.de pdf (first 1 KB)" "$pdf" "-r 0-1023"
+
+  # Why the pipeline's GITHUB_TOKEN may not create the dry-run release
+  # (HTTP 403 "Resource not accessible by integration" in run 40728437461
+  # with Contents: write). Creates two throwaway draft releases, one with
+  # and one without target_commitish, prints GitHub's answer and deletes
+  # whatever was created.
+  release-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Create and delete probe draft releases
+        continue-on-error: true
+        run: |
+          set +e
+          for variant in plain commitish; do
+            tag="probe-${GITHUB_RUN_ID}-${variant}"
+            if [ "$variant" = commitish ]; then extra=(-f "target_commitish=$GITHUB_SHA"); else extra=(); fi
+            echo "::group::$variant"
+            gh api -X POST "repos/$GITHUB_REPOSITORY/releases" -f "tag_name=$tag" -F draft=true -F prerelease=true "${extra[@]}" > out.json 2> err.txt
+            code=$?
+            cat out.json err.txt
+            echo "::endgroup::"
+            id=$(python3 -c 'import json; print(json.load(open("out.json")).get("id", ""))' 2>/dev/null)
+            echo "| $variant | exit $code | id ${id:-none} |" >> "$GITHUB_STEP_SUMMARY"
+            if [ -n "$id" ]; then gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id" && echo "deleted probe $id"; fi
+          done
