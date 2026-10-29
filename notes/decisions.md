@@ -293,3 +293,13 @@ Decided with the maintainer: the release gets a census-corrected population, so 
 2. An unchanged snapshot (same SHA-256 as `registry/inkar_sources.csv`) is not rewritten, so the retrieval date does not move and a scheduled run leaves no diff.
 3. A changed snapshot is never committed to `main` by CI: like a new BBSR crosswalk, it goes to a branch `auto/inkar-<last year>-<hash>` with a trial build, the tests, a pull request and an issue. Reason: the BBSR spreads each census gap back over earlier years, so a new INKAR year can revise `population_corrected` of earlier PKS years, and that is a data change the maintainer should see before it reaches a release.
 4. `inkar_snapshot_diff()` reports added and removed years, added, removed and revised rows (relative change above 1e-9 in either population column) and the largest relative change of the corrected population, so the pull request shows how far back a revision reaches.
+
+## 2026-10-29: Review of the uncertain known breaks
+
+Decided by the maintainer on the evidence of the Bund tables (tb01 Grundtabelle) and the national district sums.
+
+1. BRK-017 (897000, step of 59 percent in 2016) is merged into BRK-016: 897000 rises by 30,965 cases from 2015 to 2016 and its child 980100 by 30,134, and 897000 without 980100 stays between 21,852 and 24,906 from 2014 to 2020. BRK-016 now lists `980100;897000`. The id BRK-017 is retired and not reused.
+2. BRK-011 (892500, killing on request added to the label in 2016): `type = notation`, `comparable = yes`. In every Bund table from 2013, 892500 equals 010000 plus 020000, and 020000 includes para. 216 StGB; the rise in 2016 is in murder and manslaughter.
+3. BRK-010 (510000, paras. 265c to 265e StGB added in 2018): `comparable = yes`. The new offences (518500) have 3 cases nationally in 2018 and 5 in 2019.
+4. BRK-008 (residential burglary, cited paragraphs 2016 and 2018) stays `likely`: no sub-key isolates para. 244 Abs. 4 StGB.
+5. BRK-008, BRK-010, BRK-011 and BRK-016 are `reviewed`. BRK-012 stays draft with the sources found: the Bavarian LKA (Lagebild Cybercrime Bayern 2021, p. 7) states that 897000 was renamed with effect from 1 January 2021 and no longer includes software piracy, so it is not directly comparable; in the 2020 Bund table software piracy (715100, 715200) is 134 of 130,611 cases (0.10 percent). The BKA change log for 2021 (pks2021Aenderungsnachweis.pdf) could not be retrieved (bka.de unreachable from this machine).
