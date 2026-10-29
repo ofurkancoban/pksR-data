@@ -313,3 +313,12 @@ Evidence checked for BRK-001 to BRK-015 against the district outputs, the Bund t
 3. BRK-015: the Bund table 2024 shows 730000 as the sum of 731000 to 737000, including the new keys 736000 (KCanG) and 737000 (MedCanG).
 4. Verified without change: BRK-001 (seven 4-digit keys become the same keys with 00 in 2008), BRK-002 (PDF headers 220000 until 2009, 222000 from 2010; 2013 values), BRK-006 (identity exact in 4,409 rows), BRK-013 (published boundary per year matches the reform dates), BRK-014 (yearbook 2012 prints 343,460 with (-)).
 5. Review completed by the maintainer on 2026-10-29: all 16 rows of `registry/known_breaks.csv` are `reviewed` (5 `yes`, 3 `likely`, 8 `no`). BRK-012 is `likely`. Open: whether breaks without a published methodological change (Covid 2020 and 2021) are added.
+
+## 2026-10-29: Review of the manual and Destatis boundary rows
+
+Decided by the maintainer: all 70 non-BBSR rows of `registry/boundary_map.csv` are `reviewed`. With this, no registry holds a draft row.
+
+1. Manual rows, checked against the raw files. `manual-2011-07231`: BBSR sheet 2011-2012, Excel row 160 carries code 7235000 with the name Bernkastel-Wittlich and a 10.1 km2 piece; Destatis 07/2012/0001-R moves Trittenheim from 07231 to 07235 on 01.01.2012. Q5 rows (07135, 07137 in 2014 and 2015): the transfer of Lahr, Moersdorf and Zilshausen to 07140 (Destatis 07/2014/0003-R, 01.07.2014) belongs to sheet 2013-2014; sheets 2014-2015 and 2015-2016 repeat its weights (0.96 and 0.04) on rows that cover whole districts, and Destatis lists no change touching 07135 or 07137 in 2015 or 2016.
+2. Destatis rows, checked against BBSR areas: for 86 district-periods, the net area moved by the Destatis rows agrees with the area change between consecutive BBSR sheets (median gap 0.02 km2, 95 percent within 0.29 km2; BBSR rounds and resurveys areas). One gap is not a transfer: Cham (09372) and Schwandorf (09376) differ by 7.95 km2 between 31.12.2012 and 31.12.2013 in BBSR, while Destatis lists only 700 m2 without inhabitants (Tiefenbach to Weiding); no row is added for it.
+3. Destatis rows, checked against INKAR: from 2022 to 2023, 16064 loses 3,977 and 16061 gains 3,341 inhabitants in INKAR, against 3,881 moved by Destatis 16/2023/0019-R and 0020-R (Anrode, Duenwald).
+4. Side finding: `update_boundary_map()` rewrote the map from parsed numbers when it kept reviewed rows, which changed the last digit of some weights; fixed, the status is now set on the text of the file.

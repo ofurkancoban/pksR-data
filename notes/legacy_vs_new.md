@@ -24,7 +24,7 @@ No district-year-key cell of the legacy output is lost.
 | cases, cleared | Excel 2013 to 2024 | 188,800 | 0 | below 5e-15 | none: spatial harmonization of counts reproduces the legacy result exactly, including all mergers and splits |
 | cases | PDF 2003 to 2012 | 28,000 | 27,814 | median 0.025 percent, max 9.5 percent | legacy rounded the derived counts to whole numbers (95.5 percent of 2005 legacy counts are integers); new `cases_derived` is unrounded. Large relative changes occur only for small counts (BUG-015) |
 | cleared | PDF 2003 to 2012 | 28,000 | 27,901 | max 8.6 percent | same rounding |
-| population, hz, cases | PDF 2003 to 2011, `07231` and `07235` | 126 | 126 | `07231` minus 0.93 percent, `07235` plus 0.73 to 1.00 percent | BBSR 2011-2012 code typo, corrected by the draft manual row `manual-2011-07231` (BUG-034). Example 2011: Bernkastel-Wittlich population 111,073 becomes 110,035, Trier-Saarburg 141,646 becomes 142,684 |
+| population, hz, cases | PDF 2003 to 2011, `07231` and `07235` | 126 | 126 | `07231` minus 0.93 percent, `07235` plus 0.73 to 1.00 percent | BBSR 2011-2012 code typo, corrected by the reviewed manual row `manual-2011-07231` (BUG-034). Example 2011: Bernkastel-Wittlich population 111,073 becomes 110,035, Trier-Saarburg 141,646 becomes 142,684 |
 | population, hz | merged or split districts, Excel years | 1,639 | 148 | 70 legacy cells (2013 to 2021) carry a population up to 98.9 percent too small, so their HZ is up to 93.8 times too large (22 cells more than 10 times, 36 more than 2 times) | BUG-014: legacy kept one population per offence row and dropped the NA population of zero-case rows when merging. Largest case: 2013, `07140` Rhein-Hunsrueck-Kreis, `892500`: population 1,089 instead of 102,091, HZ 3.15 instead of 0.034. Example: 2020, `16063` Wartburgkreis, `219000`: population 42,250 becomes 161,224, HZ 7.10 becomes 1.86 |
 | population, hz | zero-case rows, all Excel years | 7,851 | 7,851 | NA becomes a value | legacy left HZ and population NA where cases are 0 (785 cells in 2023 alone); new keeps the published HZ of 0 and the district population |
 
@@ -36,7 +36,7 @@ Changed cells by year for HZ (Excel era, both causes above): 2013: 43, 2014: 583
    1. Total crime switches from `------` to `890000` in 2015 (BUG-012): national level 6.41 percent (2015) and 7.73 percent (2016) of all offences drop out of the series in the refugee-influx years. The new panel offers `------` for 2003 to 2025 and `890000` for 2014 to 2025.
    2. Bodily harm mixes three definitions (BUG-013). The new panel keeps `220000`, `222000` and `224000` separate.
 2. HZ values from the legacy harmonized tables are wrong for 148 merged or split district cells (BUG-014). The master panel recomputed rates with INKAR population, so its 8 keys are not affected by this specific error.
-3. PDF-era counts change only by rounding, except for Bernkastel-Wittlich and Trier-Saarburg 2003 to 2011 (about 1 percent, pending your review of `manual-2011-07231`).
+3. PDF-era counts change only by rounding, except for Bernkastel-Wittlich and Trier-Saarburg 2003 to 2011 (about 1 percent, `manual-2011-07231`, reviewed 2026-10-29).
 
 Not quantified here: the effect on the regression results of scripts `14_` to `30_`. That needs re-running your analysis on the new panel, which is outside `pksR-data`.
 

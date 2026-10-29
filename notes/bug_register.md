@@ -21,7 +21,7 @@ Evidence scripts are kept in `notes/audit/` (audit only, not pipeline code).
 | BUG-011 | critical | `02_` L436 | PDF 2010 to 2012 bodily harm column is `222000`, labelled `220000` | fixed |
 | BUG-012 | critical | `12_` L117 to L131 | "Total crime" switches from `------` to `890000` in 2015 | fixed |
 | BUG-034 | critical | BBSR `ref-kreise` sheet 2011-2012, used by `04_` | Code typo in a BBSR transfer row; legacy renormalization hid it | fixed (manual row, verified by Destatis) |
-| BUG-035 | critical | BBSR `ref-kreise` sheets 2022-2023, 2023-2024 and smaller cases | Territory transfers without weights in the crosswalk (Eichsfeld, Unstrut-Hainich, Wartburgkreis) | fixed (Destatis rows, draft) |
+| BUG-035 | critical | BBSR `ref-kreise` sheets 2022-2023, 2023-2024 and smaller cases | Territory transfers without weights in the crosswalk (Eichsfeld, Unstrut-Hainich, Wartburgkreis) | fixed (Destatis rows, reviewed 2026-10-29) |
 | BUG-014 | critical | `03_` L213 to L222, `04_` L156 to L165 | NA population on zero-case rows inflates HZ after merges (up to 94x) | fixed |
 | BUG-007 | major | `02_`, `03_`, `04_` | Four different column schemas across years; percentage columns lost 2003 to 2022 | fixed |
 | BUG-008 | major | `00_` L106, all stages | `should_skip()` file-existence caching | fixed |
@@ -88,7 +88,7 @@ Evidence scripts are kept in `notes/audit/` (audit only, not pipeline code).
 | affected_output | Master panel `PKS_total_crime_*` 2015 to 2021, all 400 districts; `22_`, `23_`, `26_`, `27_`, `28_`, and the "(1) Total" subtype model in the paper appendix. |
 | fix | `registry/offence_map.csv`: `------` covers 2003 to 2025; `890000` is published 2015 to 2025 and computed for 2014 as `------` minus `725000` (your decision Q4; identity exact in all 4,409 district rows 2015 to 2025). `R/harmonize_offence.R` (`offence_spec()`, `difference_rows()`); `registry/known_breaks.csv` BRK-006. |
 | test | `test-harmonize_offence.R`: "------ and 890000 are never coalesced into one series (BUG-012)", "890000 for 2014 is ------ minus 725000 with suspects NA" |
-| status | fixed (offence map rows are draft) |
+| status | fixed (offence map rows reviewed 2026-10-28) |
 
 ### BUG-034
 | Field | Content |
@@ -100,9 +100,9 @@ Evidence scripts are kept in `notes/audit/` (audit only, not pipeline code).
 | description | The row names Bernkastel-Wittlich as the source district and carries the complement weight of `07231` (0.0093 population, 0.0086 area) to Trier-Saarburg, but its source code is `7235000` (Trier-Saarburg) instead of `7231000`. Weight sums become 0.9907 for `07231` and 1.0093 for `07235`. The legacy renormalization (BUG-017) scaled both back to 1, so the transfer of about 0.9 percent of Bernkastel-Wittlich to Trier-Saarburg was ignored for every year harmonized through this sheet. |
 | evidence | Destatis 07/2012/0001-R: Trittenheim moves from `07231` to `07235` on 01.01.2012. Area: the 10.1 km2 piece leaves `07231` (1,177.75 to 1,167.57 km2) and joins `07235` (1,091.36 to 1,101.47 km2). Sheet rows 157, 160 and 161 (`registry/boundary_map.csv` ids `bbsr-2011-r157`, `bbsr-2011-r160`, `bbsr-2011-r161`). Effect in `notes/legacy_vs_new.md`: 126 cells, 2011 Bernkastel-Wittlich population 111,073 (legacy) vs 110,035 (new), Trier-Saarburg 141,646 vs 142,684. |
 | affected_output | PKS 2003 to 2011 (published boundaries up to 2010), districts `07231` and `07235`, all offence keys; master panel and all analysis scripts using these district-years (effect about 1 percent for two districts). |
-| fix | `registry/boundary_map.csv` row `manual-2011-07231` (status draft) replaces `bbsr-2011-r160` with source `07231`. Verified by area conservation and by Destatis, not by the name. |
-| test | `test-boundary_map.R`: "weights sum to 1 per source district and year (BUG-017)" fails without the manual row; "manual rows replace BBSR rows visibly and stay draft" |
-| status | fixed (manual row is draft) |
+| fix | `registry/boundary_map.csv` row `manual-2011-07231` (reviewed 2026-10-29) replaces `bbsr-2011-r160` with source `07231`. Verified by area conservation and by Destatis, not by the name. |
+| test | `test-boundary_map.R`: "weights sum to 1 per source district and year (BUG-017)" fails without the manual row; "manual rows replace BBSR rows visibly and are reviewed" |
+| status | fixed (manual row reviewed 2026-10-29) |
 
 ### BUG-035
 | Field | Content |
@@ -116,7 +116,7 @@ Evidence scripts are kept in `notes/audit/` (audit only, not pipeline code).
 | affected_output | Harmonized panel 2003 to 2022 (and 2003 to 2023 for the 2023-2024 change) for `16061`, `16063`, `16064`; the Bavarian and Bremen pairs are probably sparsely populated. Same in the legacy panel. |
 | fix | `R/destatis.R`, `R/boundary_map.R`: the 65 transfers that BBSR omits are derived from the Destatis lists of municipal territorial changes 2003 to 2025 (`registry/destatis_sources.csv`) and stored as `source = "destatis"` rows in `registry/boundary_map.csv`; the pipeline recomputes them (`check_boundary_map_destatis()`). Destatis gives the moved inhabitants (for example 3,881 from `16064` to `16061` on 01.01.2023), so no weight is estimated. |
 | test | `test-destatis.R`: "transfers missing in BBSR are added with Destatis inhabitants (BUG-035)", "Destatis rows in the registry must equal the Destatis files", "the area unit is read from each file's header (hectares until 2006)", "implausible BBSR denominators are refused" |
-| status | fixed (rows are draft) |
+| status | fixed (rows reviewed 2026-10-29) |
 
 ### BUG-014
 | Field | Content |
@@ -174,7 +174,7 @@ Evidence scripts are kept in `notes/audit/` (audit only, not pipeline code).
 | affected_output | Master panel `PKS_bodily_harm_*` all years; `25_`, `26_`, `28_`, paper appendix model "(4) Bodily". |
 | fix | `registry/offence_map.csv`: `220000`, `222000` and `224000` are separate harmonized keys; `registry/known_breaks.csv` BRK-002. A key is never summed with its parent or child. |
 | test | `test-harmonize_offence.R`: "no harmonized key mixes source keys across years without a documented break (BUG-013)" |
-| status | fixed (offence map rows are draft) |
+| status | fixed (offence map rows reviewed 2026-10-28) |
 
 ### BUG-015
 | Field | Content |
@@ -288,7 +288,7 @@ Evidence scripts are kept in `notes/audit/` (audit only, not pipeline code).
 | affected_output | None in current outputs beyond the renormalization itself (conservation holds). |
 | fix | `R/boundary_map.R`: `assert_boundary_map()` requires weight sums of 1 (1e-6) per source district and period without renormalization; the 6 deviating source districts are corrected by 5 documented manual rows in `registry/boundary_map.csv` (Q5 legacy fix for Mayen-Koblenz and Cochem-Zell, BUG-034 for 2011-2012). |
 | test | `test-boundary_map.R`: "weights sum to 1 per source district and year (BUG-017)" |
-| status | fixed (manual rows are draft) |
+| status | fixed (manual rows reviewed 2026-10-29) |
 
 ### BUG-018
 | Field | Content |
@@ -386,7 +386,7 @@ Evidence scripts are kept in `notes/audit/` (audit only, not pipeline code).
 | affected_output | `03-translated` `offense` column, 2003 to 2012. |
 | fix | `registry/offence_map.csv`: labels per key, not by label substring; `*50*00` is theft from vehicles. Unknown keys stop the pipeline (`harmonize_offences()`). |
 | test | `test-harmonize_offence.R`: "*50*00 is theft from vehicles, not theft of cars (BUG-024)", "unknown offence keys stop the pipeline (Section 9.1.5)" |
-| status | fixed (English labels are draft) |
+| status | fixed (English labels reviewed 2026-10-28) |
 
 ### BUG-025
 | Field | Content |
@@ -412,9 +412,9 @@ Evidence scripts are kept in `notes/audit/` (audit only, not pipeline code).
 | description | The HZ denominator changes: PDF years use the population update of 1 January; Excel headers say "HZ nach Zensus 2011" (2013), "HZ nach Zensus" (2015 to 2019) and "HZ nach Zensus 2022" (2024). Derived population and HZ therefore have level breaks that are not recorded. |
 | evidence | Excel header row 5/6 per year (audit section 5). |
 | affected_output | Derived population and HZ across 2012/2013 and 2023/2024. |
-| fix | `registry/known_breaks.csv` BRK-004 (Zensus 2011, 2013) and BRK-005 (Zensus 2022, 2024), draft. Since 2026-10-29 also column `population_corrected` (`R/population.R`): the census-corrected population of the BBSR (INKAR) at 31.12. of the year before, on the boundary of each row, so `pksR::pks_rates(population = "corrected")` puts all years on one census base. |
+| fix | `registry/known_breaks.csv` BRK-004 (Zensus 2011, 2013) and BRK-005 (Zensus 2022, 2024), reviewed 2026-10-29. Since 2026-10-29 also column `population_corrected` (`R/population.R`): the census-corrected population of the BBSR (INKAR) at 31.12. of the year before, on the boundary of each row, so `pksR::pks_rates(population = "corrected")` puts all years on one census base. |
 | test | `test-breaks.R`: "known_breaks contains census rebasing rows (BUG-026)"; `test-population.R` |
-| status | fixed (break rows are draft) |
+| status | fixed (break rows reviewed 2026-10-29) |
 
 ### BUG-029
 | Field | Content |

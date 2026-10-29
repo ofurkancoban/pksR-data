@@ -13,7 +13,7 @@ The pipeline downloads the district tables published by the Bundeskriminalamt (B
 | 2 | Territorial and offence harmonization, validation gate | done |
 | 3 | Release mechanics (manifest, Parquet and CSV.gz, GitHub releases, CI) | in review |
 
-Offence key mappings, manual territorial rows and known methodological breaks are research decisions and remain `status = "draft"` until reviewed.
+Offence key mappings, manual territorial rows and known methodological breaks are research decisions: they enter as `status = "draft"` and are set to `"reviewed"` by the maintainer. All rows are reviewed as of 2026-10-29; rows added later, for example by a crosswalk update, start as drafts.
 
 ## How it works
 
@@ -83,7 +83,7 @@ Data releases are GitHub releases of this repository, tagged `v<year>.<n>` (for 
 | `registry/boundary_map.csv` | Territorial crosswalk 2003 to 2025 in long form (BBSR, manual and Destatis rows) |
 | `registry/destatis_sources.csv` | Destatis lists of municipal territorial changes 2003 to 2025 |
 | `registry/offence_map.csv` | Offence key harmonization (reviewed 2026-10-28) |
-| `registry/known_breaks.csv` | Methodological breaks with comparability assessment (draft) |
+| `registry/known_breaks.csv` | Methodological breaks with comparability assessment |
 | `registry/bund_sources.csv` | National case tables 2013 to 2025, used only by the validation gate |
 | `registry/reference_sources.csv` | BBSR crosswalk file |
 | `registry/population_inkar.csv` | Population and census-corrected population of the BBSR (INKAR) per district, 31.12.2002 to 31.12.2023; snapshot written by `ci/fetch_inkar.R` |
