@@ -312,3 +312,4 @@ Evidence checked for BRK-001 to BRK-015 against the district outputs, the Bund t
 2. BRK-007: the 2017 label covers para. 177 Abs. 1 to 4 and 6 to 9, not Abs. 1 to 9; corrected.
 3. BRK-015: the Bund table 2024 shows 730000 as the sum of 731000 to 737000, including the new keys 736000 (KCanG) and 737000 (MedCanG).
 4. Verified without change: BRK-001 (seven 4-digit keys become the same keys with 00 in 2008), BRK-002 (PDF headers 220000 until 2009, 222000 from 2010; 2013 values), BRK-006 (identity exact in 4,409 rows), BRK-013 (published boundary per year matches the reform dates), BRK-014 (yearbook 2012 prints 343,460 with (-)).
+5. Review completed by the maintainer on 2026-10-29: all 16 rows of `registry/known_breaks.csv` are `reviewed` (5 `yes`, 3 `likely`, 8 `no`). BRK-012 is `likely`. Open: whether breaks without a published methodological change (Covid 2020 and 2021) are added.
