@@ -56,6 +56,7 @@ Evidence scripts are kept in `notes/audit/` (audit only, not pipeline code).
 | BUG-039 | minor | new code: `boundary_map.R` | Registry checks miss NA area weights; two names for one code would duplicate join rows | fixed |
 | BUG-040 | minor | new code: `boundary_map.R` `update_boundary_map()` | Keeping reviewed Destatis rows rewrote the map from parsed numbers; 21 weights changed in their last digit | fixed |
 | BUG-041 | minor | new code: `ci/fetch_inkar.R`, `pipeline.yml` job `inkar` | INKAR server omits its intermediate certificates; the job failed on its first CI run and opened no issue | fixed |
+| BUG-042 | major | new code: `boundary_map.R` `update_boundary_map()` | Boundary map compared as text; on Linux 14 weights differ in their last digit, so the CI tests failed and crosswalk updates would show spurious changes | fixed |
 | BUG-003 | not reproduced | none found | City-state filter on codes ending in `000` | fixed |
 | BUG-005 | not reproduced | `04_` | BBSR missing mappings for Osterode, Göttingen old code, Eisenach | fixed |
 | BUG-010 | not reproduced | none found | Implausible derived population medians | fixed |
@@ -602,6 +603,20 @@ Evidence scripts are kept in `notes/audit/` (audit only, not pipeline code).
 | affected_output | none; the committed INKAR snapshot is used by the pipeline, and releases do not depend on this job |
 | fix | `ci/certs/inkar_intermediates.pem` (both certificates, from `gd_bundle_dv-r1-g2.crt.pem` without its root); `inkar_ca_bundle()` in `R/population.R` adds them to the trusted roots only after `openssl::cert_verify()` succeeds, and `ci/fetch_inkar.R` sets `CURL_CA_BUNDLE` to the result; the job opens one issue when it fails |
 | test | `test-population.R`: "the INKAR intermediates are used only when they verify against trusted roots" (a chain without the cross certificate is refused); local run of `ci/fetch_inkar.R`: both indicators downloaded, snapshot unchanged |
+| status | fixed |
+
+### BUG-042
+| Field | Content |
+|---|---|
+| id | BUG-042 |
+| script and line | new code: `R/boundary_map.R` `update_boundary_map()`; `tests/testthat/test-boundary_map.R` `crosswalk_update_fixture()` |
+| category | Type and parsing errors; Reproducibility hazards |
+| severity | major |
+| description | The registry `boundary_map.csv` was built on macOS (Apple silicon). Rebuilt on the Linux CI runner, the same weights come out one unit in the last place apart for some rows, because R parses numbers with long double (80 bit on x86_64 Linux, 64 bit on Apple silicon). `update_boundary_map()` compared rows by their text (`paste()` of the weights) and wrote the rebuilt numbers, so on Linux it reported changed rows and rewrote weights that had not changed. Its round-trip test therefore failed in the pipeline job of the CI dry run, which stops every release. BUG-040 was one case of this class. |
+| evidence | CI dry run 40962397456 (2026-10-29), step Tests: 2 failures in `test-boundary_map.R`, 14 of 9,124 lines differ, for example `bbsr-2004-r402` weight_area `0.988946` against `0.9889460000000002`, and one BBSR row counted as changed. The new test fails on the previous code. |
+| affected_output | no data: weights differ by about 1e-16; every release since the first dry run would have been stopped by the test, and `ci/update_crosswalk.R` would have opened pull requests with spurious weight changes |
+| fix | `unchanged_rows()` compares id, transition and both weights within 1e-12; `update_boundary_map()` keeps the text of unchanged rows, keeps `reviewed` on unchanged Destatis rows and counts only real changes; the fixture writes the registry text |
+| test | `test-boundary_map.R`: "a map written on another platform keeps its text where the data did not change" (weights shifted by one unit in the last place must keep their text and count as unchanged) and "a newer BBSR edition adds its periods and moves the target year" |
 | status | fixed |
 
 ## Known issues not reproduced in the available code
