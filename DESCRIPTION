@@ -20,6 +20,7 @@ Imports:
     tibble,
     xml2
 Suggests:
+    inkaR,
     qpdf,
     testthat (>= 3.0.0),
     withr,
