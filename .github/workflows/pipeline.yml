@@ -308,6 +308,22 @@ jobs:
           Rscript ci/issue_body.R inkar > body.md
           gh issue create --title "New INKAR population snapshot: ${BRANCH#auto/inkar-}" --body-file body.md
 
+      # The release does not depend on this job; a failure only means the
+      # snapshot could not be checked, so one open issue is enough
+      - name: Issue on failure
+        if: failure()
+        run: |
+          title="INKAR snapshot check failed"
+          if [ -z "$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[].number')" ]; then
+            run="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            {
+              echo "Run: $run"
+              echo
+              echo "ci/fetch_inkar.R failed, so the INKAR population snapshot was not checked. The committed snapshot is still used and releases are not affected. See the log of the job inkar."
+            } > issue.md
+            gh issue create --title "$title" --body-file issue.md
+          fi
+
       - name: Reports
         if: always()
         uses: actions/upload-artifact@v4
