@@ -132,3 +132,24 @@ inkar_snapshot_diff <- function(old, new, tol = 1e-9) {
     max_change_corrected = if (nrow(changed)) max(abs(changed$population_corrected_new / changed$population_corrected_old - 1)) else 0
   )
 }
+
+# CA bundle for the INKAR interface (ci/fetch_inkar.R). www.inkar.de sends
+# its certificate without the intermediate certificates (checked on
+# 2026-10-29: chain of length 1, issuer GoDaddy TLS Intermediate CA DV -
+# R1v1), so curl cannot build a chain to a trusted root and every request
+# fails. ci/certs/inkar_intermediates.pem holds the two missing certificates
+# from the GoDaddy repository (gd_bundle_dv-r1-g2.crt.pem without its root):
+# the DV intermediate and the cross certificate of GoDaddy TLS Root CA - R1,
+# signed by Go Daddy Root Certificate Authority - G2. They are added only
+# after they verify against the trusted roots, and server verification
+# stays on.
+inkar_ca_bundle <- function(intermediates = "ci/certs/inkar_intermediates.pem", roots = openssl::ca_bundle()) {
+  chain <- openssl::read_cert_bundle(intermediates)
+  ok <- tryCatch(openssl::cert_verify(chain, roots), error = function(e) FALSE)
+  if (!isTRUE(ok)) {
+    cli::cli_abort("{.file {intermediates}} does not verify against the trusted root certificates; refresh it from the GoDaddy repository.")
+  }
+  path <- tempfile("inkar-ca-", fileext = ".pem")
+  writeLines(c(vapply(roots, openssl::write_pem, ""), vapply(chain, openssl::write_pem, "")), path)
+  path
+}

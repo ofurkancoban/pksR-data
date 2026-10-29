@@ -12,6 +12,9 @@
 # must agree, as for every raw file. Uses the CRAN package inkaR.
 source("ci/common.R")
 
+# The server omits its intermediate certificates (inkar_ca_bundle())
+Sys.setenv(CURL_CA_BUNDLE = inkar_ca_bundle())
+
 indicators <- c(population = "2", population_corrected = "5")   # M_ID: xbev, bev_korr
 first_year <- 2002L   # PKS 2003 divides by the population of 31.12.2002
 

@@ -100,3 +100,13 @@ test_that("a new INKAR snapshot reports added years and revised rows", {
   expect_identical(gone$years_removed, 2022L)
   expect_identical(gone$rows_removed, 5L)
 })
+
+test_that("the INKAR intermediates are used only when they verify against trusted roots", {
+  certs <- file.path(root, "ci", "certs", "inkar_intermediates.pem")
+  bundle <- inkar_ca_bundle(certs)
+  expect_identical(length(openssl::read_cert_bundle(bundle)), length(openssl::ca_bundle()) + 2L)
+  # Without the cross certificate the chain ends at a root no store trusts
+  broken <- withr::local_tempfile(fileext = ".pem")
+  writeLines(openssl::write_pem(openssl::read_cert_bundle(certs)[[1]]), broken)
+  expect_error(inkar_ca_bundle(broken), "does not verify")
+})
