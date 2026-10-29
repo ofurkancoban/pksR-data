@@ -111,3 +111,24 @@ add_corrected_population <- function(data, inkar, map) {
   cli::cli_inform("{unique(data$year)}: census-corrected population ({attr(corrected, 'method')}), national {format(round(after), big.mark = ',')} ({sprintf('%+.2f', 100 * (after / before - 1))} percent).")
   as_canonical(data)
 }
+
+# What a new INKAR snapshot changes against the registered one, for the pull
+# request the inkar job of the pipeline opens (ci/fetch_inkar.R). The BBSR
+# spreads each census gap back over the earlier years, so a new year can
+# revise old ones; those revisions are counted, not only the added years.
+inkar_snapshot_diff <- function(old, new, tol = 1e-9) {
+  key <- c("ags", "year")
+  both <- dplyr::inner_join(old, new, by = key, suffix = c("_old", "_new"))
+  moved <- function(a, b) abs(b / a - 1) > tol
+  changed <- both[moved(both$population_old, both$population_new) |
+                    moved(both$population_corrected_old, both$population_corrected_new), ]
+  list(
+    years_added = sort(setdiff(unique(new$year), unique(old$year))),
+    years_removed = sort(setdiff(unique(old$year), unique(new$year))),
+    rows_added = nrow(dplyr::anti_join(new, old, by = key)),
+    rows_removed = nrow(dplyr::anti_join(old, new, by = key)),
+    rows_changed = nrow(changed),
+    years_changed = sort(unique(changed$year)),
+    max_change_corrected = if (nrow(changed)) max(abs(changed$population_corrected_new / changed$population_corrected_old - 1)) else 0
+  )
+}

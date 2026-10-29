@@ -80,3 +80,23 @@ test_that("harmonization moves the corrected population and conserves it", {
   expect_equal(pop$population_corrected[pop$ags == "01001"], 0.98 * 120000)
   expect_equal(pop$population_corrected[pop$ags == "03002"], 0.98 * 0.3 * 200000)
 })
+
+test_that("a new INKAR snapshot reports added years and revised rows", {
+  old <- rbind(toy_inkar(2022L), toy_inkar(2023L, factors = rep(1, 5)))
+  same <- inkar_snapshot_diff(old, old)
+  expect_identical(same$rows_changed, 0L)
+  expect_length(same$years_added, 0)
+
+  new <- rbind(toy_inkar(2022L, factors = c(0.95, 0.9, 0.8, 0.97, 0.99)), toy_inkar(2023L, factors = rep(1, 5)), toy_inkar(2024L, factors = rep(1, 5)))
+  d <- inkar_snapshot_diff(old, new)
+  expect_identical(d$years_added, 2024L)
+  expect_identical(d$rows_added, 5L)
+  expect_identical(d$rows_removed, 0L)
+  expect_identical(d$rows_changed, 1L)
+  expect_identical(d$years_changed, 2022L)
+  expect_equal(d$max_change_corrected, 0.01)
+
+  gone <- inkar_snapshot_diff(old, toy_inkar(2023L, factors = rep(1, 5)))
+  expect_identical(gone$years_removed, 2022L)
+  expect_identical(gone$rows_removed, 5L)
+})
