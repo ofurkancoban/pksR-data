@@ -54,6 +54,7 @@ Evidence scripts are kept in `notes/audit/` (audit only, not pipeline code).
 | BUG-037 | minor | new code: `harmonize_space.R`, `harmonize_offence.R` | Clearance rate of zero-case rows is 0 in unchanged districts, NA in recomputed ones and in 2022 | fixed (0 everywhere, with a load note) |
 | BUG-038 | minor | new code: `harmonize_space.R` `check_conservation()` | Population conservation skipped when no population is published (2013 to 2025 except 2020) | fixed |
 | BUG-039 | minor | new code: `boundary_map.R` | Registry checks miss NA area weights; two names for one code would duplicate join rows | fixed |
+| BUG-040 | minor | new code: `boundary_map.R` `update_boundary_map()` | Keeping reviewed Destatis rows rewrote the map from parsed numbers; 21 weights changed in their last digit | fixed |
 | BUG-003 | not reproduced | none found | City-state filter on codes ending in `000` | fixed |
 | BUG-005 | not reproduced | `04_` | BBSR missing mappings for Osterode, Göttingen old code, Eisenach | fixed |
 | BUG-010 | not reproduced | none found | Implausible derived population medians | fixed |
@@ -572,6 +573,20 @@ Evidence scripts are kept in `notes/audit/` (audit only, not pipeline code).
 | affected_output | none |
 | fix | `weights_differ()` treats any NA weight as a difference; `boundary_names()` aborts on a code with several names. |
 | test | existing `test-boundary_map.R` tests pass; the pipeline run covers both functions |
+| status | fixed |
+
+### BUG-040
+| Field | Content |
+|---|---|
+| id | BUG-040 |
+| script and line | new code: `R/boundary_map.R` `update_boundary_map()` (status of reviewed Destatis rows) |
+| category | Type and parsing errors; Reproducibility hazards |
+| severity | minor |
+| description | When a crosswalk update kept the `reviewed` status of Destatis rows, it read the new map with numeric columns and wrote it back. readr's number parser differs from R's `as.numeric()` by one unit in the last place for some values, so these weights changed their text, and the update reported changes that did not exist. Only reachable once the registry holds reviewed Destatis rows, which it does since 2026-10-29. |
+| evidence | 21 of the 18,246 weights in `registry/boundary_map.csv` are parsed differently by `readr::read_csv()` and `as.numeric()`. With all Destatis rows reviewed, the round-trip test in `test-boundary_map.R` failed on 6 lines on the previous code (for example `9.137287748420012e-5` written as `9.137287748420011e-5`). The relative size, about 1e-16, does not change any value in the panel. |
+| affected_output | none published; `ci/update_crosswalk.R` would have committed spurious weight changes and wrong counts of changed rows into the pull request of the next BBSR edition |
+| fix | `update_boundary_map()` sets the status on the file read as text, so no weight is reparsed (commit `86d2f53`) |
+| test | `test-boundary_map.R`: "a newer BBSR edition adds its periods and moves the target year" (the map must come back row for row) and "reviewed Destatis rows stay reviewed and drafts stay draft"; the first fails on the previous code |
 | status | fixed |
 
 ## Known issues not reproduced in the available code
