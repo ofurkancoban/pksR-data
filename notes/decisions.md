@@ -303,3 +303,12 @@ Decided by the maintainer on the evidence of the Bund tables (tb01 Grundtabelle)
 3. BRK-010 (510000, paras. 265c to 265e StGB added in 2018): `comparable = yes`. The new offences (518500) have 3 cases nationally in 2018 and 5 in 2019.
 4. BRK-008 (residential burglary, cited paragraphs 2016 and 2018) stays `likely`: no sub-key isolates para. 244 Abs. 4 StGB.
 5. BRK-008, BRK-010, BRK-011 and BRK-016 are `reviewed`. BRK-012 stays draft with the sources found: the Bavarian LKA (Lagebild Cybercrime Bayern 2021, p. 7) states that 897000 was renamed with effect from 1 January 2021 and no longer includes software piracy, so it is not directly comparable; in the 2020 Bund table software piracy (715100, 715200) is 134 of 130,611 cases (0.10 percent). The BKA change log for 2021 (pks2021Aenderungsnachweis.pdf) could not be retrieved (bka.de unreachable from this machine).
+
+## 2026-10-29: Research on the remaining known breaks
+
+Evidence checked for BRK-001 to BRK-015 against the district outputs, the Bund tables, the PDF yearbooks in `data-raw/` and secondary sources (bka.de was unreachable). Texts updated where the check added facts or found an error; `comparable` and `status` unchanged pending the maintainer.
+
+1. BRK-003: counts derived from integer HZ reproduce national totals: derived district sums 2012 fall short of the yearbook totals by the same share as published district sums 2013 (unknown place), within 0.05 percentage points for six keys. Small cells are noisy (median error 7.3 percent below 10 cases, simulated on 2013 to 2025).
+2. BRK-007: the 2017 label covers para. 177 Abs. 1 to 4 and 6 to 9, not Abs. 1 to 9; corrected.
+3. BRK-015: the Bund table 2024 shows 730000 as the sum of 731000 to 737000, including the new keys 736000 (KCanG) and 737000 (MedCanG).
+4. Verified without change: BRK-001 (seven 4-digit keys become the same keys with 00 in 2008), BRK-002 (PDF headers 220000 until 2009, 222000 from 2010; 2013 values), BRK-006 (identity exact in 4,409 rows), BRK-013 (published boundary per year matches the reform dates), BRK-014 (yearbook 2012 prints 343,460 with (-)).
