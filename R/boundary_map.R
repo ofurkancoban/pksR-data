@@ -267,7 +267,11 @@ update_boundary_map <- function(bbsr_path, map_path, destatis_changes) {
   keep <- new$source == "destatis" & signature(new) %in% signature(reviewed)
   if (any(keep)) {
     new$status[keep] <- "reviewed"
-    readr::write_csv(new, map_path, na = "")
+    # Rewrite from the text, not from the parsed numbers: a double read and
+    # written again can change in its last digit
+    text <- readr::read_csv(map_path, col_types = readr::cols(.default = "c"), na = "", progress = FALSE)
+    text$status[keep] <- "reviewed"
+    readr::write_csv(text, map_path, na = "")
   }
 
   compare <- function(src) {

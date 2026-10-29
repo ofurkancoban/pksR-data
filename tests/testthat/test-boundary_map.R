@@ -89,15 +89,17 @@ test_that("a manual row is never kept on a BBSR row that now means another trans
   expect_error(update_boundary_map(f$bbsr, f$path, f$changes), "another transition")
 })
 
-test_that("reviewed Destatis rows stay reviewed when their weights are unchanged", {
+test_that("reviewed Destatis rows stay reviewed and drafts stay draft", {
   f <- crosswalk_update_fixture(function(m) {
-    m$status[which(m$source == "destatis")[1]] <- "reviewed"
+    m$status[which(m$source == "destatis")[1]] <- "draft"
     m
   })
+  draft_id <- f$old$id[which(f$old$source == "destatis")[1]]
   r <- update_boundary_map(f$bbsr, f$path, f$changes)
-  expect_equal(r$destatis_reviewed_kept, 1L)
+  expect_equal(r$destatis_reviewed_kept, sum(f$old$source == "destatis" & f$old$status == "reviewed"))
   new <- read_boundary_map_raw(f$path)
-  expect_identical(new$status[new$id == f$old$id[which(f$old$source == "destatis")[1]]], "reviewed")
+  expect_identical(new$status[new$id == draft_id], "draft")
+  expect_true(all(new$status[new$source == "destatis" & new$id != draft_id] == "reviewed"))
 })
 
 test_that("the reference registry is pointed at the new file", {
