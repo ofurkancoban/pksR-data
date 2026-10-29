@@ -55,6 +55,7 @@ Evidence scripts are kept in `notes/audit/` (audit only, not pipeline code).
 | BUG-038 | minor | new code: `harmonize_space.R` `check_conservation()` | Population conservation skipped when no population is published (2013 to 2025 except 2020) | fixed |
 | BUG-039 | minor | new code: `boundary_map.R` | Registry checks miss NA area weights; two names for one code would duplicate join rows | fixed |
 | BUG-040 | minor | new code: `boundary_map.R` `update_boundary_map()` | Keeping reviewed Destatis rows rewrote the map from parsed numbers; 21 weights changed in their last digit | fixed |
+| BUG-041 | minor | new code: `ci/fetch_inkar.R`, `pipeline.yml` job `inkar` | INKAR server omits its intermediate certificates; the job failed on its first CI run and opened no issue | fixed |
 | BUG-003 | not reproduced | none found | City-state filter on codes ending in `000` | fixed |
 | BUG-005 | not reproduced | `04_` | BBSR missing mappings for Osterode, Göttingen old code, Eisenach | fixed |
 | BUG-010 | not reproduced | none found | Implausible derived population medians | fixed |
@@ -587,6 +588,20 @@ Evidence scripts are kept in `notes/audit/` (audit only, not pipeline code).
 | affected_output | none published; `ci/update_crosswalk.R` would have committed spurious weight changes and wrong counts of changed rows into the pull request of the next BBSR edition |
 | fix | `update_boundary_map()` sets the status on the file read as text, so no weight is reparsed (commit `86d2f53`) |
 | test | `test-boundary_map.R`: "a newer BBSR edition adds its periods and moves the target year" (the map must come back row for row) and "reviewed Destatis rows stay reviewed and drafts stay draft"; the first fails on the previous code |
+| status | fixed |
+
+### BUG-041
+| Field | Content |
+|---|---|
+| id | BUG-041 |
+| script and line | new code: `ci/fetch_inkar.R`, `.github/workflows/pipeline.yml` job `inkar` |
+| category | Reproducibility hazards |
+| severity | minor |
+| description | www.inkar.de sends only its own certificate, issued by GoDaddy TLS Intermediate CA DV - R1v1, without the intermediates. Browsers fetch them, curl does not, so every request from the CI runner (and from macOS) fails with "unable to get local issuer certificate". The intermediate named in the certificate's AIA field is signed by GoDaddy TLS Root CA - R1, which is in neither the Mozilla nor the macOS root store; a valid chain needs the cross certificate of R1 signed by Go Daddy Root Certificate Authority - G2. The job also opened no issue on failure, so the error would only have shown as a failed run. |
+| evidence | First CI run of the job (run 40962397456, 2026-10-29): `SSL peer certificate or SSH remote key was not OK [www.inkar.de]`. `openssl s_client`: chain of length 1 in six connections. `openssl verify` without partial chains: OK against the Mozilla roots with the DV intermediate and the R1-to-G2 cross certificate from certs.godaddy.com, not OK with the intermediate alone. |
+| affected_output | none; the committed INKAR snapshot is used by the pipeline, and releases do not depend on this job |
+| fix | `ci/certs/inkar_intermediates.pem` (both certificates, from `gd_bundle_dv-r1-g2.crt.pem` without its root); `inkar_ca_bundle()` in `R/population.R` adds them to the trusted roots only after `openssl::cert_verify()` succeeds, and `ci/fetch_inkar.R` sets `CURL_CA_BUNDLE` to the result; the job opens one issue when it fails |
+| test | `test-population.R`: "the INKAR intermediates are used only when they verify against trusted roots" (a chain without the cross certificate is refused); local run of `ci/fetch_inkar.R`: both indicators downloaded, snapshot unchanged |
 | status | fixed |
 
 ## Known issues not reproduced in the available code

@@ -326,3 +326,7 @@ Decided by the maintainer: all 70 non-BBSR rows of `registry/boundary_map.csv` a
 ## 2026-10-29: Real shocks are not known breaks
 
 Decided by the maintainer: `registry/known_breaks.csv` lists only changes in recording and measurement (definitions, keys, laws that change what is an offence, population denominators, sources, boundaries). Real shocks to crime, such as the Covid-19 pandemic (2020 and 2021) or the immigration of 2015 and 2016, are not added; the getting started vignettes and the help page of `pksR::pks_breaks()` say so in one sentence. Rationale: one clear criterion for the table, and real shocks belong in the model (for example as year effects), not in a list of measurement problems.
+
+## 2026-10-29: Certificates for the INKAR interface (BUG-041)
+
+The INKAR server omits its intermediate certificates. Instead of disabling verification, the pipeline commits the two missing certificates from the GoDaddy repository and uses them only after they verify against the trusted roots of the `openssl` package. Both certificates are valid until 2040. If GoDaddy changes the chain or INKAR fixes its server, `inkar_ca_bundle()` either keeps working (extra intermediates do no harm) or stops with a message to refresh the file. The inkaR package already tells its users about the same problem and the same workaround.
