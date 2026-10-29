@@ -1,0 +1,2 @@
+file_name,indicators,level,years,url,retrieved_at,sha256,notes
+population_inkar.csv,xbev (M_ID 2): Bevoelkerung gesamt; bev_korr (M_ID 5): Bevoelkerung mit BBSR-Zensuskorrekturen,KRE,2002-2023,https://www.inkar.de,2026-10-29T17:23:34Z,9944ca1a6f8ba35bee4a5dba417aa8e23b8bfbf25ffdd6ab0de5bb2b60abd351,"Population at 31.12. of each year, Kreise on the INKAR boundary; BBSR, dl-de/by-2-0. Retrieved with the R package inkaR."
