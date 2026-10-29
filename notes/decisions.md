@@ -262,3 +262,12 @@ Checked on bka.de, bbsr.bund.de, destatis.de and govdata.de (brief Section 10.6)
 5. Second review, same principle, eight more short names changed (still draft): `435*00` `residential_burglary` and `436*00` `daytime_residential_burglary` (English burglary also covers commercial premises); `217000` `other_street_robbery` / `sonstiger_strassenraub` (handbag robbery 216000 is excluded); `222000` `dangerous_serious_bodily_harm` / `gefaehrliche_schwere_koerperverletzung` (the label names both); `111000` `rape_sexual_coercion` / `vergewaltigung_sexuelle_noetigung` (only especially serious cases, not all sexual assault); `***100` German `kraftwagendiebstahl` (Kfz includes motorcycles, which are ***200); `*50*00` German `diebstahl_an_aus_kfz` (parts from vehicles since 2012); `211000` `bank_post_office_robbery` / `raub_geldinstitute_post`.
 6. Also checked in the second review: every child key is at most its parent in every district-year, valid_from and valid_to equal the years in the data, and every label_de equals the last published label apart from the removed trailing "und zwar:" or "davon:" and one double space.
 7. Review completed by the maintainer on 2026-10-28: all 46 rows of `registry/offence_map.csv` (harmonized keys, labels, parent keys, source keys, validity years and short names) are set to `status = "reviewed"`. `registry/known_breaks.csv` is not part of this review and stays draft.
+
+## 2026-10-29: Review of the known breaks (still draft)
+
+All 17 rows of `registry/known_breaks.csv` were checked against the release data; they stay `status = draft` until the maintainer reviews them.
+
+1. BRK-015 (Cannabis Act 2024) also affects the totals: 730000 drops by 116,105 cases from 2023 to 2024, while `------` drops by 83,287 and `890000` by 72,058. Without the law change both totals would have risen. `offence_key` now lists `730000;------;890000` and the evidence gives the national totals.
+2. BRK-006 said "Your decision Q4"; it is shown to users by `pksR::pks_breaks()`, so it now says "as decided by the maintainer (question Q4 of the offence review)".
+3. Checked without change: the national values in the evidence of BRK-003, BRK-007, BRK-008, BRK-009 and BRK-014 to BRK-017 match the district sums of the release; the 2015 and 2016 rise of 725000 (immigration offences, 155,850 in 2014, 486,631 in 2016) is a real change, not a recording break, and is already why 890000 exists.
+4. Open for the maintainer: whether to add breaks without a published methodological change, such as the Covid years 2020 and 2021.
