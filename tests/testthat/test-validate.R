@@ -109,6 +109,17 @@ test_that("district sums must lie between Bund minus unknown place and Bund (Sec
 test_that("implausible median population warns in the gate (BUG-010)", {
   g <- gate_input()
   g$panel$derived_population <- 3500
+  g$panel$population_corrected <- 3500
   path <- withr::local_tempfile(fileext = ".json")
   expect_warning(validation_gate(g$panel, g$ctx, path), "median district population")
+})
+
+test_that("a missing or implausible corrected population fails the gate", {
+  g <- gate_input()
+  path <- withr::local_tempfile(fileext = ".json")
+  g$panel$population_corrected[g$panel$ags == "01001"] <- NA
+  expect_error(validation_gate(g$panel, g$ctx, path), "corrected_population")
+  g <- gate_input()
+  g$panel$population_corrected[g$panel$ags == "01001"] <- 2 * g$panel$derived_population[g$panel$ags == "01001"]
+  expect_error(validation_gate(g$panel, g$ctx, path), "corrected_population")
 })

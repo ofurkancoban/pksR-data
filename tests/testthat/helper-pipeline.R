@@ -63,7 +63,7 @@ toy_year <- function(cases = c(100L, 50L, 200L, 300L, 250L), zero_key = FALSE) {
     year = 2019L, ags = codes, region_name = codes, offence_key = "------",
     offence_label = "Straftaten insgesamt", cases = cases, attempts = 1L, cleared = 10L,
     suspects = 5L, hz = cases / pop * 1e5, clearance_rate = 10 / cases * 100,
-    derived_population = pop, source_format = "xlsx", source_file = "toy.xlsx",
+    derived_population = pop, population_corrected = 0.98 * pop, source_format = "xlsx", source_file = "toy.xlsx",
     boundary_year = 2019L, harmonized = FALSE, weight_type = "none", estimated = FALSE
   )
   if (zero_key) {

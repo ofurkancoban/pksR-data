@@ -47,6 +47,9 @@ list(
   tar_target(known_breaks, read_known_breaks(known_breaks_file)),
   tar_target(bund_sources_file, "registry/bund_sources.csv", format = "file"),
   tar_target(bund_sources, read_bund_sources(bund_sources_file)),
+  # Census-corrected population of the BBSR (R/population.R)
+  tar_target(population_inkar_file, "registry/population_inkar.csv", format = "file"),
+  tar_target(population_inkar, read_population_inkar(population_inkar_file)),
 
   # National (Bund) tables, only for the validation gate (Section 7.4)
   tar_target(
@@ -72,7 +75,8 @@ list(
     canonical,
     {
       data <- extract_source(sources, raw_file)
-      validate_extraction(data, boundary_codes(boundary_map, sources$boundary_year))
+      data <- validate_extraction(data, boundary_codes(boundary_map, sources$boundary_year))
+      add_corrected_population(data, population_inkar, boundary_map)
     },
     pattern = map(sources, raw_file),
     iteration = "list"
@@ -129,7 +133,7 @@ list(
       # Every registry copied into the release is a dependency: unchanged
       # panels must not keep an outdated registry copy in the release
       c(sources_file, bund_sources_file, destatis_sources_file, reference_sources_file,
-        boundary_map_file, offence_map_file, known_breaks_file)
+        boundary_map_file, offence_map_file, known_breaks_file, population_inkar_file)
       build_release_assets(canonical_file, panel_file, "registry", "output/release")
     },
     format = "file"

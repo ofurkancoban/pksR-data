@@ -18,7 +18,8 @@ test_that("release assets carry the weighting in their names and the notes in th
   expect_setequal(basename(r$assets), c(
     "pks_kreis_published.parquet", "pks_kreis_2019_published.csv.gz", "pks_kreis_panel_population.parquet", "pks_kreis_2019_population.csv.gz",
     "validation_population.json", "sources.csv", "bund_sources.csv", "destatis_sources.csv",
-    "reference_sources.csv", "boundary_map.csv", "offence_map.csv", "known_breaks.csv", "ATTRIBUTION.txt"
+    "reference_sources.csv", "boundary_map.csv", "offence_map.csv", "known_breaks.csv",
+    "population_inkar.csv", "inkar_sources.csv", "ATTRIBUTION.txt"
   ))
   meta <- arrow::read_parquet(file.path(r$dir, "pks_kreis_published.parquet"), as_data_frame = FALSE)$metadata$pksR_notes
   expect_identical(jsonlite::fromJSON(meta), as.list(published_notes))
@@ -90,6 +91,7 @@ test_that("every release names all sources, their licences and the changes made"
   expect_match(notes[1], sprintf("^PKS Bundeskriminalamt, reporting years %d to %d", min(m$years), max(m$years)))
   expect_match(notes[2], "^BBSR Bonn [0-9]{4}$")
   expect_match(notes[3], "^Statistisches Bundesamt \\(Destatis\\)")
+  expect_match(notes[4], "^INKAR, BBSR Bonn [0-9]{4}$")
   expect_match(m$license_note, "not official figures", fixed = TRUE)
   # Every registry an attribution points to ships with the release
   expect_true(all(file.exists(file.path(r$dir, unlist(lapply(m$attribution, `[[`, "registry"))))))

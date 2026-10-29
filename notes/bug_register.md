@@ -412,8 +412,8 @@ Evidence scripts are kept in `notes/audit/` (audit only, not pipeline code).
 | description | The HZ denominator changes: PDF years use the population update of 1 January; Excel headers say "HZ nach Zensus 2011" (2013), "HZ nach Zensus" (2015 to 2019) and "HZ nach Zensus 2022" (2024). Derived population and HZ therefore have level breaks that are not recorded. |
 | evidence | Excel header row 5/6 per year (audit section 5). |
 | affected_output | Derived population and HZ across 2012/2013 and 2023/2024. |
-| fix | `registry/known_breaks.csv` BRK-004 (Zensus 2011, 2013) and BRK-005 (Zensus 2022, 2024), draft. |
-| test | `test-breaks.R`: "known_breaks contains census rebasing rows (BUG-026)" |
+| fix | `registry/known_breaks.csv` BRK-004 (Zensus 2011, 2013) and BRK-005 (Zensus 2022, 2024), draft. Since 2026-10-29 also column `population_corrected` (`R/population.R`): the census-corrected population of the BBSR (INKAR) at 31.12. of the year before, on the boundary of each row, so `pksR::pks_rates(population = "corrected")` puts all years on one census base. |
+| test | `test-breaks.R`: "known_breaks contains census rebasing rows (BUG-026)"; `test-population.R` |
 | status | fixed (break rows are draft) |
 
 ### BUG-029

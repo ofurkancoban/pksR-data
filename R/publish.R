@@ -8,7 +8,8 @@
 #   validation_<weights>.json            validation gate report
 #   sources.csv, bund_sources.csv, destatis_sources.csv,
 #   reference_sources.csv, boundary_map.csv, offence_map.csv,
-#   known_breaks.csv                     registries of this release
+#   known_breaks.csv, population_inkar.csv,
+#   inkar_sources.csv                    registries of this release
 #   ATTRIBUTION.txt                      source notes and licences
 #   manifest.json                        written last, describes all others
 # Weightings get a suffix because asset names must be unique in a release.
@@ -33,9 +34,11 @@ source_attributions <- function(registry_dir, years) {
   read <- function(f) readr::read_csv(file.path(registry_dir, f), col_types = readr::cols(.default = "c"), na = "")
   ref <- read("reference_sources.csv")
   des <- read("destatis_sources.csv")
+  inkar <- read("inkar_sources.csv")
   bbsr_year <- substr(ref$retrieved_at[ref$label == "bbsr_ref_kreise"], 1, 4)
+  inkar_year <- substr(inkar$retrieved_at, 1, 4)
   des_years <- range(as.integer(substr(des$label, 1, 4)))
-  if (length(bbsr_year) != 1 || is.na(bbsr_year) || anyNA(des_years)) {
+  if (length(bbsr_year) != 1 || is.na(bbsr_year) || length(inkar_year) != 1 || is.na(inkar_year) || anyNA(des_years)) {
     cli::cli_abort("The registries in {.file {registry_dir}} lack the dates for the source notes.")
   }
   list(
@@ -60,6 +63,13 @@ source_attributions <- function(registry_dir, years) {
       license_url = "https://www.destatis.de/DE/Service/Impressum/_inhalt.html",
       source_note = sprintf("Statistisches Bundesamt (Destatis), Gemeindeverzeichnis, %d to %d", des_years[1], des_years[2]),
       registry = "destatis_sources.csv"
+    ),
+    list(
+      provider = "Bundesinstitut f\u00fcr Bau-, Stadt- und Raumforschung (BBSR), https://www.bbsr.bund.de",
+      dataset = sprintf("INKAR, Kreise, years %s: Bev\u00f6lkerung gesamt and Bev\u00f6lkerung mit BBSR-Zensuskorrekturen", inkar$years),
+      license = data_license$id, license_url = data_license$url,
+      source_note = paste("INKAR, BBSR Bonn", inkar_year),
+      registry = "inkar_sources.csv"
     )
   )
 }
@@ -69,7 +79,7 @@ changes_note <- function() {
     "Changes: case counts extracted from the published BKA tables, district codes normalized, ",
     "counts harmonized to one boundary year (target_boundary_year in manifest.json) with BBSR weights ",
     "and documented corrections (boundary_map.csv), offence keys mapped (offence_map.csv), rates and ",
-    "derived population recomputed. Changes made by ", pipeline_author, " with pksR-data (", pipeline_url, "). ",
+    "derived population recomputed, census-corrected population (INKAR) dated to the HZ reference date and moved to the boundary of each row. Changes made by ", pipeline_author, " with pksR-data (", pipeline_url, "). ",
     "These are not official figures of the BKA, the BBSR or Destatis."
   )
 }
@@ -118,7 +128,7 @@ write_parquet_with_notes <- function(data, path, notes) {
 
 release_registry_files <- c(
   "sources.csv", "bund_sources.csv", "destatis_sources.csv", "reference_sources.csv",
-  "boundary_map.csv", "offence_map.csv", "known_breaks.csv"
+  "boundary_map.csv", "offence_map.csv", "known_breaks.csv", "population_inkar.csv", "inkar_sources.csv"
 )
 
 # `panel_files` is the output of the panel_file target: per weighting the

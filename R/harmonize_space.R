@@ -41,9 +41,14 @@ district_population <- function(data) {
     if (length(pop) != 1) {
       cli::cli_abort("District {d$ags[1]}: published population differs between offence keys.")
     }
+    corrected <- unique(d$population_corrected)
+    if (length(corrected) != 1) {
+      cli::cli_abort("District {d$ags[1]}: corrected population differs between offence keys.")
+    }
     total <- d$derived_population[d$offence_key %in% c("------", "----")]
     derived <- if (length(total) == 1 && !is.na(total)) total else stats::median(d$derived_population, na.rm = TRUE)
-    tibble::tibble(ags = d$ags[1], population = pop, derived_population = if (is.na(derived)) NA_real_ else derived)
+    tibble::tibble(ags = d$ags[1], population = pop, derived_population = if (is.na(derived)) NA_real_ else derived,
+                   population_corrected = corrected)
   })
   dplyr::bind_rows(rows)
 }
@@ -88,6 +93,7 @@ harmonize_space <- function(data, map, target, weights = c("population", "area")
     dplyr::group_by(pop, ags = to_ags),
     population = sum_weighted(population, weight),
     derived_population = sum_weighted(derived_population, weight),
+    population_corrected = sum_weighted(population_corrected, weight),
     .groups = "drop"
   )
 
@@ -153,8 +159,11 @@ check_conservation <- function(before, after, tolerance = 1e-9) {
   district_total <- function(p) sum(dplyr::coalesce(p$population, p$derived_population))
   pop_before <- district_total(district_population(before))
   pop_after <- district_total(unique(after[c("ags", "population", "derived_population")]))
+  corrected_before <- sum(district_population(before)$population_corrected)
+  corrected_after <- sum(unique(after[c("ags", "population_corrected")])$population_corrected)
+  changed <- function(x, y) is.na(x) != is.na(y) || isTRUE(abs(x - y) / y > tolerance)
   bad <- which(rel > tolerance | xor(is.na(as.matrix(a[-1])), is.na(as.matrix(b[-1]))), arr.ind = TRUE)
-  if (nrow(bad) > 0 || is.na(pop_after) != is.na(pop_before) || isTRUE(abs(pop_after - pop_before) / pop_before > tolerance)) {
+  if (nrow(bad) > 0 || changed(pop_after, pop_before) || changed(corrected_after, corrected_before)) {
     cli::cli_abort("{unique(before$year)}: harmonization changed national totals for {.val {unique(a$offence_key[bad[, 1]])}}.")
   }
   invisible(TRUE)

@@ -67,7 +67,7 @@ Data releases are GitHub releases of this repository, tagged `v<year>.<n>` (for 
 | `pks_kreis_panel_<weights>.parquet` | Harmonized panel, `population` or `area` weights |
 | `pks_kreis_<year>_<weights>.csv.gz` | The same, one file per year |
 | `validation_<weights>.json` | Validation gate report |
-| `sources.csv`, `bund_sources.csv`, `reference_sources.csv`, `destatis_sources.csv`, `boundary_map.csv`, `offence_map.csv`, `known_breaks.csv` | Registries used for the release |
+| `sources.csv`, `bund_sources.csv`, `reference_sources.csv`, `destatis_sources.csv`, `boundary_map.csv`, `offence_map.csv`, `known_breaks.csv`, `population_inkar.csv`, `inkar_sources.csv` | Registries used for the release |
 | `ATTRIBUTION.txt` | Source notes and licences of all sources |
 | `manifest.json` | SHA-256, size and rows of every asset, pipeline commit, data notes |
 
@@ -86,6 +86,8 @@ Data releases are GitHub releases of this repository, tagged `v<year>.<n>` (for 
 | `registry/known_breaks.csv` | Methodological breaks with comparability assessment (draft) |
 | `registry/bund_sources.csv` | National case tables 2013 to 2025, used only by the validation gate |
 | `registry/reference_sources.csv` | BBSR crosswalk file |
+| `registry/population_inkar.csv` | Population and census-corrected population of the BBSR (INKAR) per district, 31.12.2002 to 31.12.2023; snapshot written by `ci/fetch_inkar.R` |
+| `registry/inkar_sources.csv` | Indicators, retrieval date and SHA-256 of that snapshot |
 | `ci/` | Scripts run by the workflows: fetch, discovery, crosswalk update, release, status, issue text |
 | `.github/workflows/` | `pipeline.yml`, `keepalive.yml`, `tests.yml` |
 | `tests/testthat/` | Regression tests, offline, on small fixtures |
@@ -119,6 +121,7 @@ Output:
 - Bundeskriminalamt (BKA), Polizeiliche Kriminalstatistik, district tables (Kreise) and national tables (Bund), <https://www.bka.de>.
 - [Bundesinstitut für Bau-, Stadt- und Raumforschung](https://www.bbsr.bund.de) (BBSR), Umsteigeschlüssel für Kreise (`ref-kreise`).
 - Statistisches Bundesamt (Destatis), Gemeindeverzeichnis, yearly lists of changes to municipal names and boundaries (URLs in `registry/destatis_sources.csv`).
+- Bundesinstitut für Bau-, Stadt- und Raumforschung (BBSR), INKAR: population and census-corrected population of the districts (`registry/population_inkar.csv`, `registry/inkar_sources.csv`), dl-de/by-2-0, source note "INKAR, BBSR Bonn" and year.
 
 ### Terms of reuse
 
@@ -131,7 +134,7 @@ The code in this repository is MIT licensed. The data keep the terms of their so
 | BBSR, Umsteigeschlüssel | Datenlizenz Deutschland, Namensnennung, Version 2.0, per the BBSR Nutzungshinweise | "BBSR Bonn [year]", with a note on changes |
 | Destatis, Gemeindeverzeichnis | Copying and distribution with a source note | "Statistisches Bundesamt (Destatis)" |
 
-The licence asks for a note when data are changed. The data in a release are changed: extracted from the published tables, harmonized to one boundary year and offence classification, with derived columns added. They are not official BKA figures. Each release names all three sources, their licences and the changes made, in `ATTRIBUTION.txt` and in `manifest.json` (`license`, `attribution`, `license_note`). The registries in the release (`sources.csv`, `bund_sources.csv`, `reference_sources.csv`, `destatis_sources.csv`) give the URL of every source file. Anyone who passes the data on should keep these notes.
+The licence asks for a note when data are changed. The data in a release are changed: extracted from the published tables, harmonized to one boundary year and offence classification, with derived columns added. They are not official BKA figures. Each release names all sources, their licences and the changes made, in `ATTRIBUTION.txt` and in `manifest.json` (`license`, `attribution`, `license_note`). The registries in the release (`sources.csv`, `bund_sources.csv`, `reference_sources.csv`, `destatis_sources.csv`, `inkar_sources.csv`) give the URL of every source file. Anyone who passes the data on should keep these notes.
 
 Suggested citation for a release: *Source: PKS Bundeskriminalamt, reporting years 2003 to 2025; BBSR Bonn; Statistisches Bundesamt (Destatis), Gemeindeverzeichnis; Datenlizenz Deutschland, Namensnennung, Version 2.0; changed and processed with pksR-data, data version `<version>`.*
 

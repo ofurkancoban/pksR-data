@@ -152,6 +152,19 @@ gate_checks <- list(
     bad <- med[is.na(med) | med < 5e4 | med > 4e5]
     if (length(bad)) structure(sprintf("%s: median district population %s", names(bad), format(bad, big.mark = ",")), warning_only = TRUE)
   },
+  # Census-corrected population (R/population.R): present for every row and
+  # within 15 percent of the population behind the HZ. The largest census
+  # corrections of single districts are below 10 percent.
+  corrected_population = function(panel, ctx) {
+    pop <- unique(panel[c("year", "ags", "population", "derived_population", "population_corrected")])
+    base <- dplyr::coalesce(pop$population, pop$derived_population)
+    out <- character(0)
+    n <- sum(is.na(pop$population_corrected) | pop$population_corrected <= 0)
+    if (n) out <- sprintf("%d district-years without a positive corrected population", n)
+    far <- which(abs(pop$population_corrected / base - 1) > 0.15)
+    if (length(far)) out <- c(out, sprintf("%d %s: corrected %.0f, population %.0f", pop$year[far], pop$ags[far], pop$population_corrected[far], base[far]))
+    if (length(out)) out
+  },
   year_completeness = function(panel, ctx) {
     missing <- setdiff(ctx$years, unique(panel$year))
     if (length(missing)) sprintf("no output for registry year %d", missing)

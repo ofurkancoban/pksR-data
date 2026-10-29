@@ -7,6 +7,9 @@
 #                    count nor derived.
 #   cases_derived    PDF years only: hz * population / 1e5 (Q1). Published
 #   cleared_derived  counts and derived counts never share a column.
+#   population_corrected
+#                    census-corrected population of 31.12.(year - 1), the
+#                    date the HZ refers to (BBSR, INKAR; R/population.R).
 
 canonical_spec <- c(
   year = "integer",
@@ -29,7 +32,8 @@ canonical_spec <- c(
   harmonized = "logical",
   weight_type = "character",
   estimated = "logical",
-  derived_population = "double"
+  derived_population = "double",
+  population_corrected = "double"
 )
 
 count_columns <- c("cases", "attempts", "cleared", "suspects")
