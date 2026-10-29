@@ -57,12 +57,22 @@ summary_by <- function(d, group) {
 
 by_year <- summary_by(both, "year")
 by_status <- summary_by(dplyr::mutate(both, status = dplyr::case_when(!harmonized ~ "unchanged district", estimated & !pdf ~ "split", pdf & harmonized ~ "harmonized PDF year", TRUE ~ "merger")), "status")
+# Ranked by the exact ratio: rel() floors the denominator at 1, which hides
+# large relative errors in cells with an HZ below 1 (most BUG-014 cells)
 largest <- both |>
-  dplyr::mutate(r_hz = rel(hz_legacy, hz_new)) |>
-  dplyr::arrange(dplyr::desc(r_hz)) |>
+  dplyr::mutate(r_hz = rel(hz_legacy, hz_new), hz_ratio = hz_legacy / hz_new) |>
+  dplyr::filter(is.finite(hz_ratio)) |>
+  dplyr::arrange(dplyr::desc(hz_ratio)) |>
   utils::head(15)
 
-saveRDS(list(only_legacy = only_legacy, only_new = only_new, by_year = by_year, by_status = by_status, largest = largest, n_both = nrow(both)),
+# BUG-014 measured on the legacy data alone: an offence row whose population
+# differs from the population of the total-crime row of the same district-year
+bug014 <- legacy[legacy$year >= 2013 & !is.na(legacy$population_legacy), ]
+bug014 <- dplyr::inner_join(bug014, dplyr::transmute(bug014[bug014$offence_key == "------", ], year, ags, district_pop = population_legacy), by = c("year", "ags"))
+bug014$factor <- bug014$district_pop / bug014$population_legacy
+bug014 <- bug014[abs(bug014$factor - 1) > 1e-6, ]
+
+saveRDS(list(only_legacy = only_legacy, only_new = only_new, by_year = by_year, by_status = by_status, largest = largest, bug014 = bug014, n_both = nrow(both)),
         file.path(Sys.getenv("OUT", "."), "legacy_vs_new.rds"))
 print(nrow(both)); print(nrow(only_legacy)); print(nrow(only_new))
 print(dplyr::count(only_new, year, offence_key), n = 60)
@@ -70,3 +80,4 @@ print(dplyr::count(only_legacy, year, offence_key), n = 60)
 print(as.data.frame(by_status))
 print(as.data.frame(by_year[by_year$variable %in% c("cases", "hz"), ]))
 print(as.data.frame(largest))
+print(as.data.frame(dplyr::summarise(dplyr::group_by(bug014, year), rows = dplyr::n(), max_factor = max(factor))))

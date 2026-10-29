@@ -25,7 +25,7 @@ No district-year-key cell of the legacy output is lost.
 | cases | PDF 2003 to 2012 | 28,000 | 27,814 | median 0.025 percent, max 9.5 percent | legacy rounded the derived counts to whole numbers (95.5 percent of 2005 legacy counts are integers); new `cases_derived` is unrounded. Large relative changes occur only for small counts (BUG-015) |
 | cleared | PDF 2003 to 2012 | 28,000 | 27,901 | max 8.6 percent | same rounding |
 | population, hz, cases | PDF 2003 to 2011, `07231` and `07235` | 126 | 126 | `07231` minus 0.93 percent, `07235` plus 0.73 to 1.00 percent | BBSR 2011-2012 code typo, corrected by the draft manual row `manual-2011-07231` (BUG-034). Example 2011: Bernkastel-Wittlich population 111,073 becomes 110,035, Trier-Saarburg 141,646 becomes 142,684 |
-| population, hz | merged or split districts, Excel years | 1,639 | 148 | legacy population up to 99 percent too small, legacy HZ up to 25.9 times too large | BUG-014: legacy kept one population per offence row and dropped the NA population of zero-case rows when merging. Example: 2020, `16063` Wartburgkreis, `219000`: population 42,250 becomes 161,224, HZ 7.10 becomes 1.86 |
+| population, hz | merged or split districts, Excel years | 1,639 | 148 | 70 legacy cells (2013 to 2021) carry a population up to 98.9 percent too small, so their HZ is up to 93.8 times too large (22 cells more than 10 times, 36 more than 2 times) | BUG-014: legacy kept one population per offence row and dropped the NA population of zero-case rows when merging. Largest case: 2013, `07140` Rhein-Hunsrueck-Kreis, `892500`: population 1,089 instead of 102,091, HZ 3.15 instead of 0.034. Example: 2020, `16063` Wartburgkreis, `219000`: population 42,250 becomes 161,224, HZ 7.10 becomes 1.86 |
 | population, hz | zero-case rows, all Excel years | 7,851 | 7,851 | NA becomes a value | legacy left HZ and population NA where cases are 0 (785 cells in 2023 alone); new keeps the published HZ of 0 and the district population |
 
 Changed cells by year for HZ (Excel era, both causes above): 2013: 43, 2014: 583, 2015: 653, 2016: 640, 2017: 666, 2018: 716, 2019: 727, 2020: 757, 2021: 835, 2022: 803, 2023: 785, 2024: 791.
@@ -52,3 +52,9 @@ The table above was computed before the Destatis transfers were added; the legac
 | `08425`, `08415`, `14521`, `14511`, `12053`, `12067`, `06635`, `05958` | various | below 0.2 percent | small transfers |
 
 Example, 2020 total crime (`------`): Eichsfeld 4,737 becomes 5,082 cases (population 100,006 becomes 105,469), Unstrut-Hainich 6,465 becomes 6,129. For the legacy paper this affects only these districts; the direction is the same for all offence keys.
+
+## Correction 2026-10-29: size of the BUG-014 error
+
+The first version of the table above gave the legacy HZ as "up to 25.9 times too large". That figure was wrong: `notes/audit/legacy_vs_new.R` ranked cells by a relative difference whose denominator is floored at 1, which shrinks the error of cells with an HZ below 1, and most BUG-014 cells are rare offences with an HZ below 1. Measured on the legacy data alone (offence-row population against the district population of the same year), 70 cells are affected and the maximum factor per year is 93.8 (2013), 25.9 (2014, 2015), 26.0 (2016), 37.9 (2017), 38.0 (2018), 1.3 (2019) and 3.8 (2020, 2021), as in `notes/bug_register.md` (BUG-014). The script now ranks by the exact ratio and reports this measurement.
+
+The effect of the Destatis transfers on cases is also larger in relative terms than their effect on population: total crime (`------`) in `16061` Eichsfeld rises by 6.4 to 8.7 percent in 2013 to 2022 (2013: 3,658 becomes 3,977 cases), because Eichsfeld has a lower crime rate than `16064`, from which the territory comes.
