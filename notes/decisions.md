@@ -286,3 +286,10 @@ Decided with the maintainer: the release gets a census-corrected population, so 
    The method is chosen from the data: same base when at least 90 percent of the districts with an INKAR code agree within 0.1 percent.
 5. Harmonization moves `population_corrected` with the crosswalk weights like the counts; conservation covers it, and the validation gate requires it for every district-year, within 15 percent of the population behind the HZ.
 6. Counts and published rates are unchanged. `pksR::pks_rates(population = "corrected")` recomputes the rates with the new column.
+
+## 2026-10-29: Automatic INKAR snapshot updates
+
+1. The pipeline workflow gets a third job, `inkar`, that runs `ci/fetch_inkar.R` on every scheduled and manual run, independent of bka.de.
+2. An unchanged snapshot (same SHA-256 as `registry/inkar_sources.csv`) is not rewritten, so the retrieval date does not move and a scheduled run leaves no diff.
+3. A changed snapshot is never committed to `main` by CI: like a new BBSR crosswalk, it goes to a branch `auto/inkar-<last year>-<hash>` with a trial build, the tests, a pull request and an issue. Reason: the BBSR spreads each census gap back over earlier years, so a new INKAR year can revise `population_corrected` of earlier PKS years, and that is a data change the maintainer should see before it reaches a release.
+4. `inkar_snapshot_diff()` reports added and removed years, added, removed and revised rows (relative change above 1e-9 in either population column) and the largest relative change of the corrected population, so the pull request shows how far back a revision reaches.
