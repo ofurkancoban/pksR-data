@@ -18,7 +18,7 @@ test_that("transfers missing in BBSR are added with Destatis inhabitants (BUG-03
   own <- eff[eff$period == 2022 & eff$from_ags == "16064" & eff$to_ags == "16064", ]
   expect_equal(own$weight_population, 1 - 3881 / 102256, tolerance = 1e-12)
   expect_silent(assert_boundary_map(eff))
-  expect_true(all(reg$status[reg$source == "destatis"] == "draft"))
+  expect_true(all(reg$status[reg$source == "destatis"] == "reviewed"))
 })
 
 test_that("transfers implied by BBSR are not added twice", {

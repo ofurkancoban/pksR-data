@@ -26,10 +26,10 @@ test_that("03156, 03152 and 16056 map to 03159 and 16063 (BUG-005)", {
   expect_true(all(rows$weight_population == 1) && all(rows$source == "bbsr"))
 })
 
-test_that("manual rows replace BBSR rows visibly and stay draft", {
+test_that("manual rows replace BBSR rows visibly and are reviewed", {
   manual <- map[map$source == "manual", ]
   expect_true(all(manual$replaces %in% map$id))
-  expect_true(all(manual$status == "draft"))
+  expect_true(all(manual$status == "reviewed"))
   expect_false(any(eff$id %in% manual$replaces))
   # Q5: Mayen-Koblenz and Cochem-Zell kept whole in 2014 and 2015
   mk <- eff[eff$period %in% 2014:2015 & eff$from_ags %in% c("07135", "07137"), ]
