@@ -94,6 +94,23 @@ read_boundary_map_raw <- function(path) {
   m[boundary_map_columns]
 }
 
+read_boundary_map_text <- function(path) {
+  readr::read_csv(path, col_types = readr::cols(.default = "c"), na = "", progress = FALSE)
+}
+
+# Rows of `new` that equal the row with the same id in `old`: same
+# transition, weights within `tol`. Weights are compared as numbers, never
+# as text: they are parsed from the BBSR workbook or computed from it, and
+# the last digit of a parsed double depends on the platform (R parses with
+# long double, 80 bit on x86_64 Linux and 64 bit on Apple silicon), so a
+# map built on the CI runner differs in its text from one built on a Mac.
+unchanged_rows <- function(new, old, tol = 1e-12) {
+  o <- old[match(new$id, old$id), ]
+  close <- function(a, b) !is.na(a) & !is.na(b) & abs(a - b) <= tol
+  !is.na(o$id) & new$period == o$period & new$from_ags == o$from_ags & new$to_ags == o$to_ags &
+    close(new$weight_population, o$weight_population) & close(new$weight_area, o$weight_area)
+}
+
 read_boundary_map <- function(path) {
   m <- read_boundary_map_raw(path)
   if (anyDuplicated(m$id)) {
@@ -241,9 +258,11 @@ boundary_names <- function(map, year) {
 # transition: BBSR ids are row positions, so a row inserted by BBSR would
 # make a manual row replace the wrong one, and the update stops instead.
 # Destatis rows are recomputed as drafts; a row already "reviewed" keeps
-# that status when its weights did not change. Returns what changed.
+# that status when its weights did not change. Unchanged rows keep their
+# text, so the file changes only where the data change. Returns what changed.
 update_boundary_map <- function(bbsr_path, map_path, destatis_changes) {
   old <- read_boundary_map_raw(map_path)
+  old_text <- read_boundary_map_text(map_path)
   sheets <- grep("^[0-9]{4}-[0-9]{4}$", readxl::excel_sheets(bbsr_path), value = TRUE)
   periods <- seq(min(old$period), max(as.integer(substr(sheets, 1, 4))))
   fresh <- read_bbsr_crosswalk(bbsr_path, periods)
@@ -262,24 +281,21 @@ update_boundary_map <- function(bbsr_path, map_path, destatis_changes) {
 
   build_boundary_map(bbsr_path, map_path, periods, destatis_changes)
   new <- read_boundary_map_raw(map_path)
-  signature <- function(d) paste(d$id, d$from_ags, d$to_ags, d$weight_population, d$weight_area)
-  reviewed <- old[old$source == "destatis" & old$status == "reviewed", ]
-  keep <- new$source == "destatis" & signature(new) %in% signature(reviewed)
-  if (any(keep)) {
-    new$status[keep] <- "reviewed"
-    # Rewrite from the text, not from the parsed numbers: a double read and
-    # written again can change in its last digit
-    text <- readr::read_csv(map_path, col_types = readr::cols(.default = "c"), na = "", progress = FALSE)
-    text$status[keep] <- "reviewed"
-    readr::write_csv(text, map_path, na = "")
-  }
+  same <- unchanged_rows(new, old)
+  i <- match(new$id, old$id)
+  text <- read_boundary_map_text(map_path)
+  weights <- c("weight_population", "weight_area")
+  text[same, weights] <- old_text[i[same], weights]
+  keep <- new$source == "destatis" & same & old$status[i] %in% "reviewed"
+  text$status[keep] <- "reviewed"
+  readr::write_csv(text, map_path, na = "")
 
   compare <- function(src) {
     o <- old[old$source == src, ]
-    n <- new[new$source == src, ]
-    changed <- n$id[n$id %in% o$id & !signature(n) %in% signature(o)]
+    n <- new$source == src
+    changed <- new$id[n & new$id %in% o$id & !same]
     list(
-      added = sum(!n$id %in% o$id), removed = sum(!o$id %in% n$id), changed = length(changed),
+      added = sum(n & !new$id %in% o$id), removed = sum(!o$id %in% new$id[n]), changed = length(changed),
       changed_ids = utils::head(changed, 20)
     )
   }

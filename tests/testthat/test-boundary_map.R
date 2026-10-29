@@ -54,16 +54,23 @@ test_that("BBSR rows in the registry equal the BBSR file", {
 
 # A newer BBSR edition, simulated: the registry copy lacks the last period of
 # the registered file, so the file is one edition ahead of the registry.
-crosswalk_update_fixture <- function(edit = identity) {
+crosswalk_update_fixture <- function(edit = identity, edit_text = identity) {
   bbsr <- registered_bbsr_path()
   destatis_dir <- file.path(root, "data-raw", "destatis")
   skip_if_not(file.exists(bbsr) && dir.exists(destatis_dir), "BBSR or Destatis files not downloaded")
   changes <- read_destatis_all(read_destatis_sources(registry_path("destatis_sources.csv")), destatis_dir)
   m <- read_boundary_map_raw(registry_path("boundary_map.csv"))
-  m <- edit(m[m$period < max(m$period), ])
+  text <- read_boundary_map_text(registry_path("boundary_map.csv"))
+  kept <- m$period < max(m$period)
+  m <- edit(m[kept, ])
+  # Written from the registry text, so weights keep their digits on every
+  # platform; edits change only these columns
+  text <- text[kept, ]
+  text[c("from_ags", "to_ags", "status")] <- m[c("from_ags", "to_ags", "status")]
+  text <- edit_text(text)
   path <- withr::local_tempfile(fileext = ".csv", .local_envir = parent.frame())
-  readr::write_csv(m, path, na = "")
-  list(bbsr = bbsr, path = path, changes = changes, old = m)
+  readr::write_csv(text, path, na = "")
+  list(bbsr = bbsr, path = path, changes = changes, old = m, text = text)
 }
 
 test_that("a newer BBSR edition adds its periods and moves the target year", {
@@ -78,6 +85,22 @@ test_that("a newer BBSR edition adds its periods and moves the target year", {
   expect_equal(r$manual_rows_kept, sum(f$old$source == "manual"))
   # The result is the registered map again, row for row
   expect_identical(readLines(f$path), readLines(registry_path("boundary_map.csv")))
+})
+
+test_that("a map written on another platform keeps its text where the data did not change", {
+  # Another platform may parse the same weight one unit in the last place
+  # apart; the update must not report or write that as a change
+  ulp <- function(x) sprintf("%.17g", as.numeric(x) * (1 + .Machine$double.eps))
+  ids <- c("bbsr-2004-r402", "destatis-2012-09372-09376")
+  f <- crosswalk_update_fixture(edit_text = function(t) {
+    t$weight_area[t$id %in% ids] <- ulp(t$weight_area[t$id %in% ids])
+    t
+  })
+  r <- update_boundary_map(f$bbsr, f$path, f$changes)
+  expect_equal(c(r$bbsr$changed, r$destatis$changed), c(0L, 0L))
+  new <- read_boundary_map_text(f$path)
+  expect_identical(new$weight_area[match(ids, new$id)], f$text$weight_area[match(ids, f$text$id)])
+  expect_identical(new$status[new$id == ids[2]], "reviewed")
 })
 
 test_that("a manual row is never kept on a BBSR row that now means another transition", {
