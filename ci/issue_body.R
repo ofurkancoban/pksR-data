@@ -1,6 +1,6 @@
 # Markdown body for the issue CI opens. Usage:
-#   Rscript ci/issue_body.R failure|discovery|crosswalk > body.md
-#   Rscript ci/issue_body.R crosswalk-commit > message.txt
+#   Rscript ci/issue_body.R failure|discovery|crosswalk|inkar > body.md
+#   Rscript ci/issue_body.R crosswalk-commit|inkar-commit > message.txt
 source("ci/common.R")
 
 kind <- commandArgs(trailingOnly = TRUE)[1]
@@ -84,5 +84,36 @@ if (kind == "crosswalk") {
              sprintf("The updated registry is on branch `%s`; open a pull request from it.", Sys.getenv("BRANCH")),
            "",
            "Before merging: review the new rows in `registry/boundary_map.csv` (new Destatis rows are drafts), add the decision to `notes/decisions.md`, and expect the next release to use the new target boundary year.")
+}
+# A changed INKAR snapshot (inkar job): the commit message doubles as the
+# pull request body, the issue adds the trial outcomes and the link
+if (kind %in% c("inkar", "inkar-commit")) {
+  x <- read_ci("inkar")
+  if (is.null(x)) stop("output/ci/inkar.json is missing")
+  listed <- function(v) if (length(v)) paste(unlist(v), collapse = ", ") else "none"
+  facts <- c(
+    sprintf("INKAR population snapshot for 31.12.%s to 31.12.%s (SHA-256 %s, previously %s).",
+            x$years[[1]], x$years[[2]], substr(x$sha256, 1, 12), substr(x$previous_sha256 %||% "none", 1, 12)),
+    sprintf("Years added: %s. Years removed: %s. Rows added: %s, removed: %s.",
+            listed(x$years_added), listed(x$years_removed), x$rows_added, x$rows_removed),
+    sprintf("Rows revised: %s in years %s, largest change of the corrected population %.2f percent.",
+            x$rows_changed, listed(x$years_changed), 100 * x$max_change_corrected)
+  )
+}
+if (kind == "inkar-commit") {
+  out <- c(sprintf("data(registry): update the inkar population snapshot to %s", max(unlist(x$years))), "",
+           strwrap(paste(c(facts, "The snapshot sets population_corrected for every PKS year that divides by a population of these years."), collapse = " "), width = 72))
+}
+if (kind == "inkar") {
+  pr <- Sys.getenv("PR_URL")
+  out <- c(out, "## New INKAR population snapshot", "",
+           paste("-", facts),
+           sprintf("- Trial build: **%s**, tests: **%s**.", Sys.getenv("BUILD_OUTCOME", "not run"), Sys.getenv("TESTS_OUTCOME", "not run")),
+           if (length(x$years_added)) "- A new year moves PKS years from the method `after` to `ratio` or `level` in `R/population.R`; check the method messages in the build log.",
+           "",
+           if (nzchar(pr)) sprintf("Pull request with the new snapshot: %s", pr) else
+             sprintf("The new snapshot is on branch `%s`; open a pull request from it.", Sys.getenv("BRANCH")),
+           "",
+           "Before merging: check the revised years against the BBSR notes, add the decision to `notes/decisions.md`, and expect the next release to change `population_corrected` and the corrected rates.")
 }
 cat(out, sep = "\n")

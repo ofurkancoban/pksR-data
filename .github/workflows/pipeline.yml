@@ -14,6 +14,10 @@
 # by the crosswalk job: registry update, trial build and tests on a branch
 # "auto/bbsr-<file>", a pull request and an issue. Merging stays with the
 # maintainer, because the new rows are a territorial mapping.
+#
+# A changed INKAR population snapshot (new year or BBSR revision) is
+# prepared the same way by the inkar job on a branch "auto/inkar-<tag>":
+# the snapshot moves population_corrected, so it also waits for a merge.
 name: pipeline
 
 on:
@@ -220,6 +224,95 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: crosswalk-reports
+          path: |
+            output/ci/
+            output/validation/
+          if-no-files-found: ignore
+
+  inkar:
+    # Independent of bka.de: INKAR can change in any month
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PKSR_PROXY_URL: ${{ secrets.BKA_PROXY_URL }}
+      PKSR_PROXY_KEY: ${{ secrets.BKA_PROXY_KEY }}
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          dependencies: '"all"'
+
+      - name: Fetch the INKAR population
+        id: fetch
+        run: Rscript ci/fetch_inkar.R
+
+      # One branch per snapshot: a later run does not prepare it again
+      - name: Check for an existing update branch
+        id: branch
+        if: steps.fetch.outputs.changed == 'true'
+        env:
+          TAG: ${{ steps.fetch.outputs.tag }}
+        run: |
+          branch="auto/inkar-$TAG"
+          echo "name=$branch" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --heads origin "$branch" > /dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Branch $branch exists already; nothing to do."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch and verify raw files
+        if: steps.branch.outputs.exists == 'false'
+        run: Rscript ci/fetch.R
+
+      # Trial on the new snapshot; the outcome goes into the pull request
+      - name: Trial build
+        id: build
+        if: steps.branch.outputs.exists == 'false'
+        continue-on-error: true
+        run: Rscript -e 'targets::tar_make()'
+
+      - name: Trial tests
+        id: tests
+        if: steps.branch.outputs.exists == 'false'
+        continue-on-error: true
+        run: Rscript -e 'testthat::test_dir("tests/testthat", stop_on_failure = TRUE)'
+
+      - name: Push branch, open pull request and issue
+        if: steps.branch.outputs.exists == 'false'
+        env:
+          BRANCH: ${{ steps.branch.outputs.name }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          TESTS_OUTCOME: ${{ steps.tests.outcome }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add registry/population_inkar.csv registry/inkar_sources.csv
+          Rscript ci/issue_body.R inkar-commit > message.txt
+          git commit -F message.txt
+          git push origin "$BRANCH"
+          PR_URL=$(gh pr create --base "${{ github.event.repository.default_branch }}" --head "$BRANCH" \
+            --title "$(head -n 1 message.txt)" --body-file message.txt) || PR_URL=""
+          export PR_URL
+          Rscript ci/issue_body.R inkar > body.md
+          gh issue create --title "New INKAR population snapshot: ${BRANCH#auto/inkar-}" --body-file body.md
+
+      - name: Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: inkar-reports
           path: |
             output/ci/
             output/validation/
