@@ -1,0 +1,29 @@
+{
+  "title": "pksR-data: Pipeline and Registries for District-Level German Police Crime Statistics (PKS)",
+  "upload_type": "software",
+  "description": "<p>Reproducible pipeline that downloads the district-level (Kreis) tables of the German Police Crime Statistics (Polizeiliche Kriminalstatistik, PKS) published by the Bundeskriminalamt for the reporting years 2003 onward, extracts them from PDF and spreadsheet files, harmonizes them to one territorial boundary and offence classification, and validates them. This archive holds the pipeline code and its registries (source URLs and hashes, offence map, territorial crosswalk, known methodological breaks, population snapshot) at the release tag. The data files of the release (Parquet and CSV.gz panel, manifest.json, ATTRIBUTION.txt) are attached to the GitHub release of the same tag; manifest.json records the SHA-256 of every file.</p><p>Licences: the code is MIT licensed. The data keep the terms of their sources, Datenlizenz Deutschland, Namensnennung, Version 2.0 (dl-de/by-2-0). Source: PKS Bundeskriminalamt; BBSR Bonn; Statistisches Bundesamt (Destatis), Gemeindeverzeichnis. The data are changed and processed with pksR-data and are not official BKA figures.</p>",
+  "creators": [
+    {
+      "name": "Çoban, Ömer Furkan",
+      "orcid": "0009-0005-3623-7178"
+    }
+  ],
+  "license": "other-at",
+  "keywords": [
+    "crime statistics",
+    "Polizeiliche Kriminalstatistik",
+    "Germany",
+    "districts",
+    "Kreise",
+    "territorial harmonization",
+    "open data",
+    "R"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/ofurkancoban/pksR",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ]
+}

@@ -330,3 +330,7 @@ Decided by the maintainer: `registry/known_breaks.csv` lists only changes in rec
 ## 2026-10-29: Certificates for the INKAR interface (BUG-041)
 
 The INKAR server omits its intermediate certificates. Instead of disabling verification, the pipeline commits the two missing certificates from the GoDaddy repository and uses them only after they verify against the trusted roots of the `openssl` package. Both certificates are valid until 2040. If GoDaddy changes the chain or INKAR fixes its server, `inkar_ca_bundle()` either keeps working (extra intermediates do no harm) or stops with a message to refresh the file. The inkaR package already tells its users about the same problem and the same workaround.
+
+## 2026-10-30: Zenodo metadata for the data releases
+
+`.zenodo.json` sets the metadata Zenodo uses when it archives a GitHub release: the maintainer as the only creator (ORCID 0009-0005-3623-7178), upload type `software`, and the licence `other-at` (Other, Attribution). Zenodo's licence list has no entry for Datenlizenz Deutschland, Namensnennung, Version 2.0, so the description names it, together with the MIT licence of the code and the source note. Zenodo archives the source tree at the release tag (code and registries); the data files stay assets of the GitHub release, and the description says so. `inkaR` 0.7.0 (CRAN, 2026-10-30) still needs `inkar_ca_bundle()`: it only explains the certificate error; with the bundle it returns the committed snapshot unchanged (8,800 rows, no difference).
