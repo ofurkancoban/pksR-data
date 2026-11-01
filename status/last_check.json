@@ -1,0 +1,18 @@
+{
+  "checked_at": "2026-11-01T13:01:33Z",
+  "run": "41303592298",
+  "outcome": "success",
+  "raw_files": {
+    "downloaded": 59,
+    "mirrored": 2
+  },
+  "discovery_findings": false,
+  "landing_pages_not_checked": 0,
+  "release": {
+    "mode": "publish",
+    "data_version": "2026.1",
+    "pipeline_commit": "81a6e8f2972f01afdbe146364d90b28687a78352",
+    "tag": "v2026.1",
+    "published": true
+  }
+}
