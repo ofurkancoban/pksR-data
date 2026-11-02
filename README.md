@@ -140,7 +140,7 @@ The licence asks for a note when data are changed. The data in a release are cha
 
 Suggested citation for a release: *Source: PKS Bundeskriminalamt, reporting years 2003 to 2025; BBSR Bonn; Statistisches Bundesamt (Destatis), Gemeindeverzeichnis; Datenlizenz Deutschland, Namensnennung, Version 2.0; changed and processed with pksR-data, data version `<version>`.*
 
-Every release is archived on Zenodo. The concept DOI [10.5281/zenodo.23858428](https://doi.org/10.5281/zenodo.23858428) resolves to the latest version; cite the DOI of the version used, for `v2026.1` [10.5281/zenodo.23858429](https://doi.org/10.5281/zenodo.23858429). Zenodo mints the DOI after the release is published, so `manifest.json` cannot contain it (`zenodo_doi` stays `null`); `pksR::pks_cite()` adds it.
+Every release is archived on Zenodo. The concept DOI [10.5281/zenodo.23858428](https://doi.org/10.5281/zenodo.23858428) resolves to the latest version; cite the DOI of the version used, for `v2026.1` [10.5281/zenodo.23858429](https://doi.org/10.5281/zenodo.23858429). Zenodo mints the DOI after the release is published, so `manifest.json` cannot contain it (`zenodo_doi` stays `null`); the pipeline appends it to the release notes (`ci/zenodo_doi.R`), where `pksR::pks_cite()` reads it.
 
 ## Author
 
