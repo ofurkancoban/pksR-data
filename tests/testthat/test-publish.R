@@ -99,3 +99,39 @@ test_that("every release names all sources, their licences and the changes made"
   expect_true(any(grepl("BBSR Bonn", txt)) && any(grepl("dl-de/by-2-0", txt)))
   expect_true(any(grepl("Changes made by", paste(txt, collapse = " "))))
 })
+
+test_that("the DOI of a release is the Zenodo record with its tag", {
+  records <- list(hits = list(hits = list(
+    list(doi = "10.5281/zenodo.2", metadata = list(version = "v2026.2")),
+    list(doi = "10.5281/zenodo.1", metadata = list(version = "v2026.1"))
+  )))
+  expect_equal(zenodo_version_doi(records, "v2026.1"), "10.5281/zenodo.1")
+  expect_null(zenodo_version_doi(records, "v2026.3"))
+  expect_null(zenodo_version_doi(list(hits = list(hits = list())), "v2026.1"))
+  twice <- records
+  twice$hits$hits[[2]]$doi <- "10.5281/zenodo.9"
+  twice$hits$hits[[1]]$metadata$version <- "v2026.1"
+  expect_error(zenodo_version_doi(twice, "v2026.1"), "several records")
+})
+
+test_that("the pipeline waits for Zenodo and gives up after the timeout", {
+  calls <- 0
+  late <- function() {
+    calls <<- calls + 1
+    hits <- if (calls < 3) list() else list(list(doi = "10.5281/zenodo.1", metadata = list(version = "v2026.1")))
+    list(hits = list(hits = hits))
+  }
+  expect_equal(zenodo_wait_for_doi("v2026.1", timeout = 10, interval = 0, fetch = late), "10.5281/zenodo.1")
+  expect_equal(calls, 3)
+  never <- function() list(hits = list(hits = list()))
+  expect_error(zenodo_wait_for_doi("v2026.1", timeout = 0, interval = 1, fetch = never), "no record")
+})
+
+test_that("the DOI is appended to the release notes once and never replaced", {
+  body <- "Data version: 2026.1\n\nSources: PKS Bundeskriminalamt.\n"
+  with_doi <- release_body_with_doi(body, "10.5281/zenodo.1")
+  expect_equal(with_doi, "Data version: 2026.1\n\nSources: PKS Bundeskriminalamt.\n\nDOI: 10.5281/zenodo.1\n")
+  expect_identical(release_body_with_doi(with_doi, "10.5281/zenodo.1"), with_doi)
+  expect_error(release_body_with_doi(with_doi, "10.5281/zenodo.2"), "another DOI")
+  expect_equal(release_body_with_doi(NULL, "10.5281/zenodo.1"), "\n\nDOI: 10.5281/zenodo.1\n")
+})
