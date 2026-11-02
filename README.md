@@ -1,5 +1,7 @@
 # pksR-data
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23858428.svg)](https://doi.org/10.5281/zenodo.23858428)
+
 Data pipeline behind the `pksR` R package for German Police Crime Statistics (Polizeiliche Kriminalstatistik, PKS) at district (Kreis) level.
 
 The pipeline downloads the district tables published by the Bundeskriminalamt (BKA), extracts them from their original formats (PDF for 2003 to 2012, XLS/XLSX from 2013), harmonizes them to one territorial boundary and one offence classification, and validates every output before anything is published. Users do not run this pipeline: they read the published data releases with the `pksR` package (in development).
@@ -11,7 +13,7 @@ The pipeline downloads the district tables published by the Bundeskriminalamt (B
 | 0 | Audit of the legacy scripts, bug register | done |
 | 1 | Registry, canonical schema, extractors for 2003 to 2025 | done |
 | 2 | Territorial and offence harmonization, validation gate | done |
-| 3 | Release mechanics (manifest, Parquet and CSV.gz, GitHub releases, CI) | in review |
+| 3 | Release mechanics (manifest, Parquet and CSV.gz, GitHub releases, CI) | done: first release `v2026.1` on 2026-11-01 |
 
 Offence key mappings, manual territorial rows and known methodological breaks are research decisions: they enter as `status = "draft"` and are set to `"reviewed"` by the maintainer. All rows are reviewed as of 2026-10-29; rows added later, for example by a crosswalk update, start as drafts.
 
@@ -137,6 +139,8 @@ The code in this repository is MIT licensed. The data keep the terms of their so
 The licence asks for a note when data are changed. The data in a release are changed: extracted from the published tables, harmonized to one boundary year and offence classification, with derived columns added. They are not official BKA figures. Each release names all sources, their licences and the changes made, in `ATTRIBUTION.txt` and in `manifest.json` (`license`, `attribution`, `license_note`). The registries in the release (`sources.csv`, `bund_sources.csv`, `reference_sources.csv`, `destatis_sources.csv`, `inkar_sources.csv`) give the URL of every source file. Anyone who passes the data on should keep these notes.
 
 Suggested citation for a release: *Source: PKS Bundeskriminalamt, reporting years 2003 to 2025; BBSR Bonn; Statistisches Bundesamt (Destatis), Gemeindeverzeichnis; Datenlizenz Deutschland, Namensnennung, Version 2.0; changed and processed with pksR-data, data version `<version>`.*
+
+Every release is archived on Zenodo. The concept DOI [10.5281/zenodo.23858428](https://doi.org/10.5281/zenodo.23858428) resolves to the latest version; cite the DOI of the version used, for `v2026.1` [10.5281/zenodo.23858429](https://doi.org/10.5281/zenodo.23858429). Zenodo mints the DOI after the release is published, so `manifest.json` cannot contain it (`zenodo_doi` stays `null`); `pksR::pks_cite()` adds it.
 
 ## Author
 
