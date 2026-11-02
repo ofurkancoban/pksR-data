@@ -44,7 +44,7 @@ concurrency:
 jobs:
   pipeline:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     outputs:
       crosswalk_url: ${{ steps.discover.outputs.crosswalk_url }}
     env:
@@ -92,6 +92,31 @@ jobs:
       - name: Release
         if: env.RELEASE_MODE == 'publish' && vars.PUBLISH_ENABLED == 'true'
         run: Rscript ci/release.R publish
+
+      # The release is out at this point: a missing DOI opens its own issue
+      # instead of failing the job
+      - name: Zenodo DOI
+        id: zenodo
+        if: env.RELEASE_MODE == 'publish' && vars.PUBLISH_ENABLED == 'true'
+        timeout-minutes: 20
+        continue-on-error: true
+        run: Rscript ci/zenodo_doi.R
+
+      - name: Issue on missing DOI
+        if: steps.zenodo.outcome == 'failure'
+        run: |
+          title="Zenodo DOI missing"
+          if [ -z "$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[].number')" ]; then
+            {
+              echo "The release of run ${{ github.run_id }} is published, but its Zenodo DOI could not be added to the release notes."
+              echo ""
+              echo "Check the Zenodo GitHub integration, then run \`Rscript ci/zenodo_doi.R <tag>\` with a token that may edit releases."
+              echo "Until then \`pksR::pks_cite()\` gives the concept DOI."
+              echo ""
+              echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            } > issue.md
+            gh issue create --title "$title" --body-file issue.md
+          fi
 
       - name: Reports
         if: always()
