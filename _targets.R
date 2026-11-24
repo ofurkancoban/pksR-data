@@ -75,6 +75,8 @@ list(
     canonical,
     {
       data <- extract_source(sources, raw_file)
+      # Word gaps of PDF names from the BBSR vocabulary (BUG-043)
+      data <- repair_region_names(data, boundary_map)
       data <- validate_extraction(data, boundary_codes(boundary_map, sources$boundary_year))
       add_corrected_population(data, population_inkar, boundary_map)
     },

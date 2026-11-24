@@ -54,9 +54,10 @@ merge_number_fragments <- function(w) {
 }
 
 # District names: fragments closer than 1.5 points are one word. The PDF text
-# layer itself splits some names ("Neumün ster" in 2007, also in poppler's own
-# text output), so PDF-era names carry spacing artefacts; `ags` is the
-# identifier, names are informative only (see notes/decisions.md).
+# layer itself splits some names ("Neumün ster" in 2007) and joins others
+# ("BadKreuznach" in 2011), and positions come in whole points, so no
+# threshold gets every gap right. repair_region_names() (R/region_names.R)
+# corrects the remaining gaps with the BBSR names (BUG-043).
 join_name_words <- function(w) {
   w <- w[order(w$x), ]
   if (nrow(w) == 0) {
