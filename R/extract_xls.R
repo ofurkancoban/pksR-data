@@ -58,6 +58,12 @@ extract_xls <- function(path, source) {
     clearance_rate = as_number(data[[13]], "clearance_rate"),
     suspects = as_number(data[[14]], "suspects"),
     population = population,
+    district_type = xls_district_type(data[[3]], data[[cols$type]], basename(path)),
+    firearm_threatened = as_number(data[[10]], "firearm_threatened"),
+    firearm_fired = as_number(data[[11]], "firearm_fired"),
+    suspects_male = as_number(data[[15]], "suspects_male"),
+    suspects_female = as_number(data[[16]], "suspects_female"),
+    suspects_non_german = as_number(data[[17]], "suspects_non_german"),
     source_format = source$format,
     source_file = source$file_name,
     boundary_year = source$boundary_year,
@@ -108,6 +114,23 @@ xls_name_type_columns <- function(data, file) {
     cli::cli_abort("{.file {file}}: cannot tell district name from type in columns 4 and 5")
   }
   list(type = (4:5)[is_type], name = (4:5)[!is_type])
+}
+
+# The type is a property of the district. The 2014 table leaves it empty in
+# the block of one offence key, so empty cells take the type the district has
+# in its other rows; a district with two types stops the pipeline.
+xls_district_type <- function(ags, type, file) {
+  known <- unique(data.frame(ags = ags, type = type)[!is.na(type), ])
+  if (anyDuplicated(known$ags)) {
+    cli::cli_abort("{.file {file}}: district{?s} {.val {unique(known$ags[duplicated(known$ags)])}} with several types")
+  }
+  filled <- known$type[match(ags, known$ags)]
+  if (anyNA(filled)) {
+    cli::cli_abort("{.file {file}}: no district type for {.val {unique(ags[is.na(filled)])}}")
+  }
+  n <- sum(is.na(type))
+  if (n > 0) cli::cli_inform("{.file {file}}: {n} empty district type cell{?s} filled from the same district.")
+  filled
 }
 
 # Only the 2020 table publishes population (EW 31.12.2019).

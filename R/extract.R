@@ -41,10 +41,19 @@ write_panel <- function(panel, weights, dir) {
   table <- arrow::arrow_table(panel)
   table$metadata$pksR_notes <- jsonlite::toJSON(as.list(panel_notes), auto_unbox = TRUE)
   arrow::write_parquet(table, parquet)
-  csv <- vapply(split(panel, panel$year), function(d) {
-    path <- file.path(dir, sprintf("pks_kreis_%d.csv.gz", unique(d$year)))
-    readr::write_csv(d, path, na = "")
-    path
-  }, character(1))
+  csv <- unlist(lapply(split(panel, panel$year), function(d) {
+    write_year_csv(d, file.path(dir, sprintf("pks_kreis_%d", unique(d$year))))
+  }))
   unname(c(parquet, csv))
+}
+
+# One year as two CSV files: `<stem>.csv.gz` with the columns pksR 0.1.0
+# reads, and `<stem>_details.csv.gz` with the row key and the detail columns
+# (R/schema.R). Rows are in the same order in both.
+write_year_csv <- function(d, stem) {
+  main <- paste0(stem, ".csv.gz")
+  details <- paste0(stem, "_details.csv.gz")
+  readr::write_csv(d[setdiff(names(d), detail_columns)], main, na = "")
+  readr::write_csv(d[c(detail_key, detail_columns)], details, na = "")
+  c(main, details)
 }

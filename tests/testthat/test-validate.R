@@ -123,3 +123,19 @@ test_that("a missing or implausible corrected population fails the gate", {
   g$panel$population_corrected[g$panel$ags == "01001"] <- 2 * g$panel$derived_population[g$panel$ags == "01001"]
   expect_error(validation_gate(g$panel, g$ctx, path), "corrected_population")
 })
+
+test_that("broken suspect and firearm breakdowns stop the extraction", {
+  codes <- toy_year()$ags
+  d <- toy_year()
+  d$suspects_male[1] <- 4L
+  expect_error(validate_extraction(d, codes), "do not add up")
+  d <- toy_year()
+  d$suspects_non_german[1] <- 6L
+  expect_error(validate_extraction(d, codes), "non-German")
+  d <- toy_year()
+  d$firearm_fired[1] <- 101L
+  expect_error(validate_extraction(d, codes), "firearm")
+  d <- toy_year()
+  d$district_type[1] <- "XY"
+  expect_error(validate_extraction(d, codes), "district type")
+})

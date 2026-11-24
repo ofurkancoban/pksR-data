@@ -10,6 +10,12 @@
 #   population_corrected
 #                    census-corrected population of 31.12.(year - 1), the
 #                    date the HZ refers to (BBSR, INKAR; R/population.R).
+#   detail columns   district_type, firearm and suspect breakdowns of the
+#                    spreadsheet years (detail_spec). They are part of the
+#                    data and the Parquet files, but the per-year CSV files
+#                    carry them in separate *_details.csv.gz files, because
+#                    pksR 0.1.0 refuses CSV files with columns it does not
+#                    know (notes/decisions.md, 2026-11-24).
 
 canonical_spec <- c(
   year = "integer",
@@ -36,7 +42,32 @@ canonical_spec <- c(
   population_corrected = "double"
 )
 
-count_columns <- c("cases", "attempts", "cleared", "suspects")
+# Further fields of the spreadsheet tables (2013 onward); NA in the PDF years.
+# Percentages of the tables (attempts, non-German suspects) are left out:
+# they follow from the counts and cannot be moved with crosswalk weights.
+detail_spec <- c(
+  district_type = "character",
+  firearm_threatened = "integer",
+  firearm_fired = "integer",
+  suspects_male = "integer",
+  suspects_female = "integer",
+  suspects_non_german = "integer"
+)
+
+# Columns of the per-year CSV files: the schema of release v2026.1, which
+# pksR 0.1.0 reads. Detail files hold the row key and the detail columns.
+csv_columns <- names(canonical_spec)
+detail_key <- c("year", "ags", "offence_key")
+detail_columns <- names(detail_spec)
+
+canonical_spec <- c(canonical_spec, detail_spec)
+
+detail_counts <- c("firearm_threatened", "firearm_fired", "suspects_male", "suspects_female", "suspects_non_german")
+count_columns <- c("cases", "attempts", "cleared", "suspects", detail_counts)
+
+# Suspects are persons: one person can be a suspect under several keys, so
+# suspect counts of two keys cannot be subtracted (harmonize_offence.R).
+person_counts <- c("suspects", "suspects_male", "suspects_female", "suspects_non_german")
 
 # Everything that is moved with crosswalk weights during harmonization.
 harmonized_counts <- c(count_columns, "cases_derived", "cleared_derived")

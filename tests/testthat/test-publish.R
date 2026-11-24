@@ -17,6 +17,7 @@ test_that("release assets carry the weighting in their names and the notes in th
   r <- release_fixture()
   expect_setequal(basename(r$assets), c(
     "pks_kreis_published.parquet", "pks_kreis_2019_published.csv.gz", "pks_kreis_panel_population.parquet", "pks_kreis_2019_population.csv.gz",
+    "pks_kreis_2019_published_details.csv.gz", "pks_kreis_2019_population_details.csv.gz",
     "validation_population.json", "sources.csv", "bund_sources.csv", "destatis_sources.csv",
     "reference_sources.csv", "boundary_map.csv", "offence_map.csv", "known_breaks.csv",
     "population_inkar.csv", "inkar_sources.csv", "ATTRIBUTION.txt"
@@ -134,4 +135,27 @@ test_that("the DOI is appended to the release notes once and never replaced", {
   expect_identical(release_body_with_doi(with_doi, "10.5281/zenodo.1"), with_doi)
   expect_error(release_body_with_doi(with_doi, "10.5281/zenodo.2"), "another DOI")
   expect_equal(release_body_with_doi(NULL, "10.5281/zenodo.1"), "\n\nDOI: 10.5281/zenodo.1\n")
+})
+
+test_that("the per-year CSV files keep the columns of release v2026.1", {
+  # pksR 0.1.0 refuses CSV files with other columns (notes/decisions.md)
+  v1 <- c(
+    "year", "ags", "region_name", "offence_key", "offence_label", "cases", "attempts", "hz", "cleared",
+    "clearance_rate", "suspects", "cases_derived", "cleared_derived", "population", "source_format",
+    "source_file", "boundary_year", "harmonized", "weight_type", "estimated", "derived_population",
+    "population_corrected"
+  )
+  r <- release_fixture()
+  read <- function(f) readr::read_csv(file.path(r$dir, f), col_types = readr::cols(.default = "c"), na = "")
+  pub <- read("pks_kreis_2019_published.csv.gz")
+  harm <- read("pks_kreis_2019_population.csv.gz")
+  expect_identical(names(pub), v1)
+  expect_identical(names(harm), append(v1, "offence_key_published", after = 4))
+  for (f in c("pks_kreis_2019_published", "pks_kreis_2019_population")) {
+    main <- read(paste0(f, ".csv.gz"))
+    det <- read(paste0(f, "_details.csv.gz"))
+    expect_identical(names(det), c("year", "ags", "offence_key", detail_columns))
+    expect_identical(det[c("year", "ags", "offence_key")], main[c("year", "ags", "offence_key")])
+  }
+  expect_true(all(c(detail_columns) %in% names(arrow::read_parquet(file.path(r$dir, "pks_kreis_panel_population.parquet")))))
 })

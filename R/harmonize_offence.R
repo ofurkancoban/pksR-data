@@ -129,10 +129,10 @@ difference_rows <- function(data, spec_row, map) {
     cli::cli_abort("{spec_row$year}: key {spec_row$minus_key} is missing for some districts.")
   }
   out <- plus
-  for (col in setdiff(harmonized_counts, "suspects")) {
+  for (col in setdiff(harmonized_counts, person_counts)) {
     out[[col]] <- plus[[col]] - minus[[col]]
   }
-  out$suspects <- NA_real_
+  out[person_counts] <- NA_real_
   cases <- dplyr::coalesce(out$cases, out$cases_derived)
   cleared <- dplyr::coalesce(out$cleared, out$cleared_derived)
   out$hz <- cases / dplyr::coalesce(out$population, out$derived_population) * 1e5

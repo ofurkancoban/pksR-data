@@ -102,6 +102,7 @@ harmonize_space <- function(data, map, target, weights = c("population", "area")
     dplyr::group_by(joined, offence_key, ags = to_ags),
     dplyr::across(dplyr::all_of(harmonized_counts), ~ sum_weighted(.x, weight)),
     published_name = if (dplyr::n() == 1) region_name[1] else NA_character_,
+    published_type = if (dplyr::n() == 1) district_type[1] else NA_character_,
     offence_label = offence_label[1],
     hz_published = if (dplyr::n() == 1) hz[1] else NA_real_,
     clearance_rate_published = if (dplyr::n() == 1) clearance_rate[1] else NA_real_,
@@ -123,6 +124,8 @@ harmonize_space <- function(data, map, target, weights = c("population", "area")
   out$clearance_rate <- ifelse(out$identity, out$clearance_rate_published, cleared / cases * 100)
   out$clearance_rate[!is.na(cases) & cases == 0] <- 0
   out$region_name <- ifelse(out$identity, out$published_name, out$name)
+  # The BKA type of a changed district is not known for its earlier years
+  out$district_type <- ifelse(out$identity, out$published_type, NA_character_)
 
   out$year <- unique(data$year)
   out$source_format <- unique(data$source_format)

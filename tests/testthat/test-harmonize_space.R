@@ -95,3 +95,15 @@ test_that("conservation covers the derived population when none is published", {
   h$derived_population[h$ags == "01001"] <- h$derived_population[h$ags == "01001"] + 1000
   expect_error(check_conservation(d, h), "national totals")
 })
+
+test_that("detail counts move with the weights and the type stays where a district is unchanged", {
+  d <- toy_year()
+  h <- harmonize_space(d, toy_map(), 2021)
+  # National totals of every detail count are conserved
+  for (col in detail_counts) expect_equal(sum(h[[col]]), sum(d[[col]]), label = col)
+  # Male and female suspects still add up after weighting
+  expect_equal(h$suspects_male + h$suspects_female, h$suspects)
+  # Unchanged districts keep the published type; changed ones have none
+  expect_identical(h$district_type[!h$harmonized], d$district_type[match(h$ags[!h$harmonized], d$ags)])
+  expect_true(all(is.na(h$district_type[h$harmonized])))
+})

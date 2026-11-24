@@ -39,6 +39,20 @@ validate_extraction <- function(data, expected_codes) {
   if (any(data$attempts > data$cases, na.rm = TRUE)) {
     cli::cli_abort("{year}: attempts exceed cases.")
   }
+  # Breakdowns of the spreadsheet years (detail_spec): they hold in every
+  # table 2013 to 2025 (checked 2026-11-24), so a break means a shifted column.
+  if (any(data$suspects_male + data$suspects_female != data$suspects, na.rm = TRUE)) {
+    cli::cli_abort("{year}: male and female suspects do not add up to all suspects.")
+  }
+  if (any(data$suspects_non_german > data$suspects, na.rm = TRUE)) {
+    cli::cli_abort("{year}: non-German suspects exceed all suspects.")
+  }
+  if (any(data$firearm_threatened > data$cases | data$firearm_fired > data$cases, na.rm = TRUE)) {
+    cli::cli_abort("{year}: cases with a firearm exceed all cases.")
+  }
+  if (!all(is.na(data$district_type) | data$district_type %in% district_types)) {
+    cli::cli_abort("{year}: unknown district type{?s} {.val {setdiff(data$district_type, c(district_types, NA))}}.")
+  }
   # Cleared cases may exceed recorded cases (AQ > 100): PKS counts cases
   # cleared this year that were recorded in earlier years. The published
   # tables contain such values (2003: LK Haßberge, key 7300, AQ 105.0).
@@ -143,6 +157,13 @@ gate_checks <- list(
     if (n) out <- c(out, sprintf("%d rows with attempts above cases", n))
     n <- sum(panel$hz < 0 | panel$clearance_rate < 0, na.rm = TRUE)
     if (n) out <- c(out, sprintf("%d rows with negative rates", n))
+    # Weighted sums keep the breakdowns of the published tables
+    n <- sum(abs(panel$suspects_male + panel$suspects_female - panel$suspects) > 1e-6 * pmax(panel$suspects, 1), na.rm = TRUE)
+    if (n) out <- c(out, sprintf("%d rows where male and female suspects do not add up", n))
+    n <- sum(panel$suspects_non_german > panel$suspects + tol, na.rm = TRUE)
+    if (n) out <- c(out, sprintf("%d rows with non-German suspects above all suspects", n))
+    n <- sum(panel$firearm_threatened > panel$cases + tol | panel$firearm_fired > panel$cases + tol, na.rm = TRUE)
+    if (n) out <- c(out, sprintf("%d rows with firearm cases above all cases", n))
     if (length(out)) out
   },
   population = function(panel, ctx) {

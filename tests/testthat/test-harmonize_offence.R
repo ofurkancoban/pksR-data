@@ -50,6 +50,9 @@ test_that("890000 for 2014 is ------ minus 725000 with suspects NA", {
   full <- h[h$offence_key == "------", ]
   expect_equal(excl$cases, full$cases - 10)
   expect_true(all(is.na(excl$suspects)))
+  # Suspect breakdowns are persons too; firearm cases are cases
+  expect_true(all(is.na(excl[c("suspects_male", "suspects_female", "suspects_non_german")])))
+  expect_equal(excl$firearm_threatened, full$firearm_threatened - 1)
   expect_identical(unique(excl$offence_key_published), "------ minus 725000")
 })
 

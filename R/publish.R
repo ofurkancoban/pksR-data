@@ -3,8 +3,14 @@
 # Assets of one data release:
 #   pks_kreis_published.parquet          all years as published (canonical)
 #   pks_kreis_<year>_published.csv.gz    the same, one file per year
+#   pks_kreis_<year>_published_details.csv.gz
+#                                        detail columns of that year
 #   pks_kreis_panel_<weights>.parquet    harmonized panel per weighting
 #   pks_kreis_<year>_<weights>.csv.gz    the same, one file per year
+#   pks_kreis_<year>_<weights>_details.csv.gz
+#                                        detail columns of that year
+# Parquet files hold all columns; the CSV files split off the detail columns
+# (R/schema.R), so pksR 0.1.0 can read the main files.
 #   validation_<weights>.json            validation gate report
 #   sources.csv, bund_sources.csv, destatis_sources.csv,
 #   reference_sources.csv, boundary_map.csv, offence_map.csv,
@@ -141,9 +147,8 @@ build_release_assets <- function(canonical_files, panel_files, registry_dir, dir
   # The same per year as CSV, so pksR reads the data as published
   # without depending on arrow
   for (d in split(published, published$year)) {
-    path <- file.path(dir, sprintf("pks_kreis_%d_published.csv.gz", unique(d$year)))
-    readr::write_csv(d[order(d$offence_key, d$ags), ], path, na = "")
-    out <- c(out, path)
+    stem <- file.path(dir, sprintf("pks_kreis_%d_published", unique(d$year)))
+    out <- c(out, write_year_csv(d[order(d$offence_key, d$ags), ], stem))
   }
 
   for (f in panel_files) {
@@ -156,6 +161,8 @@ build_release_assets <- function(canonical_files, panel_files, registry_dir, dir
         sprintf("pks_kreis_panel_%s.parquet", w)
       } else if (grepl("^pks_kreis_[0-9]{4}\\.csv\\.gz$", name)) {
         sub("\\.csv\\.gz$", sprintf("_%s.csv.gz", w), name)
+      } else if (grepl("^pks_kreis_[0-9]{4}_details\\.csv\\.gz$", name)) {
+        sub("_details\\.csv\\.gz$", sprintf("_%s_details.csv.gz", w), name)
       } else {
         cli::cli_abort("Unexpected panel output {.file {f}}.")
       }

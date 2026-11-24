@@ -62,3 +62,30 @@ test_that("a non-empty row without a district code is an error (BUG-020)", {
   src <- fixture_source(2014, basename(path), "xlsx", sheet = "T")
   expect_error(extract_xls(path, src), "without a district code")
 })
+
+test_that("detail columns are read in every Excel layout", {
+  # Flensburg, all offences, as printed in the tables
+  expected <- list(
+    `2013` = c(15, 12, 2761, 838, 835), `2014` = c(18, 12, 2939, 952, 1256),
+    `2020` = c(11, 5, 2786, 832, 1233), `2025` = c(9, 10, 2682, 968, 1306)
+  )
+  for (year in c(2013, 2014, 2015, 2020, 2025)) {
+    d <- xls_fixture(year)
+    expect_false(anyNA(d[detail_columns]), label = paste(year, "detail NA"))
+    expect_true(all(d$suspects_male + d$suspects_female == d$suspects), label = paste(year, "male + female"))
+    fl <- d[d$ags == "01001" & d$offence_key == "------", ]
+    expect_identical(fl$district_type, "KfS", label = paste(year, "type"))
+    if (as.character(year) %in% names(expected)) {
+      got <- unlist(fl[c("firearm_threatened", "firearm_fired", "suspects_male", "suspects_female", "suspects_non_german")])
+      expect_equal(unname(got), expected[[as.character(year)]], label = paste(year, "counts"))
+    }
+  }
+})
+
+test_that("an empty district type takes the type of the same district", {
+  ags <- c("01001", "01001", "01051", "01051")
+  expect_message(out <- xls_district_type(ags, c("KfS", NA, "K", "K"), "t.xlsx"), "1 empty district type")
+  expect_identical(out, c("KfS", "KfS", "K", "K"))
+  expect_error(xls_district_type(ags, c("KfS", "K", "K", "K"), "t.xlsx"), "several types")
+  expect_error(xls_district_type(ags, c(NA, NA, "K", "K"), "t.xlsx"), "no district type")
+})
