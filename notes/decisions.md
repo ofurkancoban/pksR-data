@@ -339,3 +339,12 @@ The INKAR server omits its intermediate certificates. Instead of disabling verif
 
 After a public release, the pipeline job waits up to 15 minutes for the Zenodo record of the new tag (`zenodo_wait_for_doi()`, records of concept 23858428, newest 25) and appends `DOI: <doi>` to the release notes (`ci/zenodo_doi.R`); `pksR::pks_cite()` and `pksR::pks_versions()` read it from there. A line already present is kept, and a different DOI is never replaced. The step runs after the release is out, so a missing DOI opens the issue "Zenodo DOI missing" instead of failing the job; `pks_cite()` gives the concept DOI meanwhile. Data, tag and manifest stay unchanged, so editing the notes does not break the immutability of the release; Zenodo ignores the "edited" event, so it does not archive the release again. The job timeout rises from 90 to 120 minutes (the release run on 2026-11-01 took 72). v2026.1 received its line on 2026-11-02 with the same script.
 
+
+## 2026-11-24: Word gaps of PDF district names (BUG-043)
+
+The output check of pksR 0.1.0 found district names of the PDF years with lost or extra word gaps ("LK BadKreuznach", "LK Neustadt a.d.Waldn aab"). You chose to apply both proposed fixes.
+
+1. Repair in the pipeline: a gap threshold alone cannot work (pdftools gives positions in whole points, a gap inside a word and between words can both be 2 points, and the 2011 text layer joins words itself). The names are repaired with the words of the BBSR names instead (`R/region_names.R`), and a check stops the pipeline when a PDF name holds an unknown word. Four words the BKA printed are kept as published (Salle, Jerochower, Burgenland, Salzland). Only spaces and line break hyphens change, so `region_name` stays the name as published. This replaces item 6 of the Phase 1 decisions ("names are informative only").
+2. Official names: `region_name_official` is added by pksR (`pks_get()`), from `boundary_map.csv` of the release, not written into the release files. Rationale: pksR 0.1.0 on CRAN refuses release files with columns it does not know (`read_release_csv()`), so a new column in the files would break `pks_get()` for every user of 0.1.0 as soon as the release is published. The repaired `region_name` keeps the schema, so 0.1.0 reads the next release unchanged.
+
+The fix reaches users with the next data release (v2026.2) and the next pksR version.

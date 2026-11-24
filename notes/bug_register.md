@@ -57,6 +57,7 @@ Evidence scripts are kept in `notes/audit/` (audit only, not pipeline code).
 | BUG-040 | minor | new code: `boundary_map.R` `update_boundary_map()` | Keeping reviewed Destatis rows rewrote the map from parsed numbers; 21 weights changed in their last digit | fixed |
 | BUG-041 | minor | new code: `ci/fetch_inkar.R`, `pipeline.yml` job `inkar` | INKAR server omits its intermediate certificates; the job failed on its first CI run and opened no issue | fixed |
 | BUG-042 | major | new code: `boundary_map.R` `update_boundary_map()` | Boundary map compared as text; on Linux 14 weights differ in their last digit, so the CI tests failed and crosswalk updates would show spurious changes | fixed |
+| BUG-043 | cosmetic | new code: `extract_pdf.R` `join_name_words()` | PDF district names lose real word gaps ("LK BadKreuznach"), mostly 2011 and 2012; values unaffected | fixed |
 | BUG-003 | not reproduced | none found | City-state filter on codes ending in `000` | fixed |
 | BUG-005 | not reproduced | `04_` | BBSR missing mappings for Osterode, Göttingen old code, Eisenach | fixed |
 | BUG-010 | not reproduced | none found | Implausible derived population medians | fixed |
@@ -618,6 +619,20 @@ Evidence scripts are kept in `notes/audit/` (audit only, not pipeline code).
 | fix | `unchanged_rows()` compares id, transition and both weights within 1e-12; `update_boundary_map()` keeps the text of unchanged rows, keeps `reviewed` on unchanged Destatis rows and counts only real changes; the fixture writes the registry text |
 | test | `test-boundary_map.R`: "a map written on another platform keeps its text where the data did not change" (weights shifted by one unit in the last place must keep their text and count as unchanged) and "a newer BBSR edition adds its periods and moves the target year" |
 | status | fixed |
+
+### BUG-043
+| Field | Content |
+|---|---|
+| id | BUG-043 |
+| script and line | new code: `R/extract_pdf.R` `join_name_words()` (gap threshold `gap < 1.5`) |
+| category | PDF extraction correctness |
+| severity | cosmetic |
+| description | Words of a district name are joined without a space when the horizontal gap between them is below 1.5 points. The PDF text layer of some years has tight word spacing and random gaps inside words (2009: "LK Herfo rd", "0575 8"), so the fixed threshold removes real word gaps and, rarely, keeps a gap inside a word. Only `region_name` of the PDF years is affected; AGS codes and all values are correct. The harmonized panel carries the published name of each year, so one AGS shows up to 8 different names across years. |
+| evidence | Output check of the CRAN version 0.1.0 against release v2026.1 (2026-11-24): published names with a lower case letter directly followed by a capital, or "a.d." glued to the next word, per year: 9 (2003 to 2006, 2008), 6 (2007), 10 (2009), 8 (2010), 36 (2011), 108 (2012), 6 in every spreadsheet year (genuine abbreviations such as "Mülheim a.d.Ruhr"). Examples: "LK BadKreuznach", "SK FrankfurtamMain", "LK HerzogtumLauenburg", "LK RegionHannover", "LK Rhein-KreisNeuss", "SK LandauinderPfalz"; split inside a word: "LK Neustadt a.d.Waldn aab". The 2012 PDF prints "LK Neustadt a.d.Aisch-Bad Windsheim", the release has "LK Neustadta.d.Aisch-Bad Windsheim". |
+| affected_output | `region_name` in the published and harmonized data of 2003 to 2012 in release v2026.1; no counts, rates, AGS codes or joins (all joins use `ags`) |
+| fix | `R/region_names.R` `repair_region_names()`, called in the `canonical` target after extraction: a vocabulary of every word of every BBSR name in `boundary_map.csv` removes gaps inside words, removes line break hyphens and adds missing gaps (never in front of a hyphen, comma or closing bracket). Only spaces and line break hyphens change, never letters; every change is reported. A threshold relative to the font size was tested and dropped: positions come in whole points, and in 2008 a gap inside a word ("Wolfenbü ttel") and a real word gap ("Herzogtum Lauenburg") are both 2 points, while the 2011 text layer has no gap at all ("BadKreuznach"). `check_region_names()` then stops the pipeline when a PDF name holds a word outside the BBSR names and outside `published_name_words` (four BKA spellings with reasons: Salle, Jerochower, Burgenland, Salzland). Local rebuild: 100 names repaired (2003: 2, 2007: 3, 2008: 15, 2009: 12, 2010: 2, 2011: 49, 2012: 17), 1,932 rows of the release files change `region_name`, no other value changes. In pksR, `pks_get()` adds `region_name_official` (the BBSR name at the boundary year of the row), so a harmonized panel has one name per district. |
+| test | `test-region_names.R`: "a missing word gap is added (BUG-043)", "a word gap is never put in front of a hyphen or comma (BUG-043)", "a gap inside a word and a line break hyphen are removed (BUG-043)", "correct names and BKA spellings stay as published (BUG-043)", "repair_region_names() changes PDF years only and reports changes (BUG-043)", "a name with a word outside the BBSR names stops the pipeline (BUG-043)", "every PDF year of the pipeline passes the name check (BUG-043)" (fails on the outputs of release v2026.1, passes after the rebuild); pksR `test-pks_get.R`: "every row gets the official name of its district and boundary year" |
+| status | fixed (in the code; the data reach users with the next release, v2026.2) |
 
 ## Known issues not reproduced in the available code
 
