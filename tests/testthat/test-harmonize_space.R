@@ -104,6 +104,28 @@ test_that("detail counts move with the weights and the type stays where a distri
   # Male and female suspects still add up after weighting
   expect_equal(h$suspects_male + h$suspects_female, h$suspects)
   # Unchanged districts keep the published type; changed ones have none
+  # without the types of the latest table, and that type with them
   expect_identical(h$district_type[!h$harmonized], d$district_type[match(h$ags[!h$harmonized], d$ags)])
   expect_true(all(is.na(h$district_type[h$harmonized])))
+  latest <- tibble::tibble(ags = c("01001", "02000", "03001", "03002", "11000"), district_type = c("KfS", "SK", "LK", "LK", "SK"))
+  ht <- harmonize_space(d, toy_map(), 2021, types = latest)
+  expect_identical(ht$district_type[ht$harmonized], latest$district_type[match(ht$ags[ht$harmonized], latest$ags)])
+  expect_identical(ht$district_type[!ht$harmonized], h$district_type[!h$harmonized])
+  # A year without published types (PDF) stays NA everywhere
+  pdf <- d
+  pdf$district_type <- NA_character_
+  expect_true(all(is.na(harmonize_space(pdf, toy_map(), 2021, types = latest)$district_type)))
+})
+
+test_that("the latest types come from the most recent year with types", {
+  old <- toy_year()
+  new <- toy_year()
+  new$year <- 2020L
+  new$district_type <- "LK"
+  pdf <- toy_year()
+  pdf$year <- 2021L
+  pdf$district_type <- NA_character_
+  types <- latest_district_types(list(old, new, pdf))
+  expect_identical(unique(types$district_type), "LK")
+  expect_null(latest_district_types(list(pdf)))
 })

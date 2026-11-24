@@ -98,12 +98,14 @@ list(
 
   # Harmonization: one branch per (weights, year)
   tar_target(weights, weight_types),
+  # Types of the latest table for districts changed by harmonization
+  tar_target(district_types_latest, latest_district_types(canonical)),
   # Each branch records its weighting: years without any boundary change
   # carry weight_type "none" only, so the rows cannot tell.
   tar_target(
     harmonized,
     {
-      spatial <- harmonize_space(canonical, boundary_map, target_year, weights)
+      spatial <- harmonize_space(canonical, boundary_map, target_year, weights, district_types_latest)
       check_conservation(canonical, spatial)
       list(weights = weights, data = harmonize_offences(spatial, offence_map))
     },

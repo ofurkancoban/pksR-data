@@ -59,7 +59,9 @@ sum_weighted <- function(x, w) {
   if (anyNA(x)) NA_real_ else sum(x * w)
 }
 
-harmonize_space <- function(data, map, target, weights = c("population", "area")) {
+# `types`: district types of the latest table (ags, district_type), given to
+# districts changed by harmonization; NULL leaves them NA.
+harmonize_space <- function(data, map, target, weights = c("population", "area"), types = NULL) {
   weights <- match.arg(weights)
   from_year <- unique(data$boundary_year)
   if (length(from_year) != 1) {
@@ -124,8 +126,13 @@ harmonize_space <- function(data, map, target, weights = c("population", "area")
   out$clearance_rate <- ifelse(out$identity, out$clearance_rate_published, cleared / cases * 100)
   out$clearance_rate[!is.na(cases) & cases == 0] <- 0
   out$region_name <- ifelse(out$identity, out$published_name, out$name)
-  # The BKA type of a changed district is not known for its earlier years
-  out$district_type <- ifelse(out$identity, out$published_type, NA_character_)
+  # A changed district gets its type in the latest table (your decision,
+  # notes/decisions.md 2026-11-24); unchanged districts keep the published type
+  # Only in years that publish types: in the PDF years every district stays
+  # NA, so changed and unchanged districts are treated alike
+  no_types <- is.null(types) || all(is.na(data$district_type))
+  latest_type <- if (no_types) NA_character_ else types$district_type[match(out$ags, types$ags)]
+  out$district_type <- ifelse(out$identity, out$published_type, latest_type)
 
   out$year <- unique(data$year)
   out$source_format <- unique(data$source_format)
@@ -170,4 +177,18 @@ check_conservation <- function(before, after, tolerance = 1e-9) {
     cli::cli_abort("{unique(before$year)}: harmonization changed national totals for {.val {unique(a$offence_key[bad[, 1]])}}.")
   }
   invisible(TRUE)
+}
+
+# District types of the most recent year with published types: one type per
+# district, as the spreadsheet extraction guarantees.
+latest_district_types <- function(canonical) {
+  years <- vapply(canonical, function(d) unique(d$year), integer(1))
+  typed <- vapply(canonical, function(d) any(!is.na(d$district_type)), logical(1))
+  if (!any(typed)) return(NULL)
+  latest <- canonical[[which(typed)[which.max(years[typed])]]]
+  types <- unique(latest[!is.na(latest$district_type), c("ags", "district_type")])
+  if (anyDuplicated(types$ags)) {
+    cli::cli_abort("{unique(latest$year)}: districts with several types.")
+  }
+  types
 }
